@@ -248,11 +248,11 @@
       <div class="legend">
         <div class="legend-item">
           <div class="legend-dot" style="background:rgba(108,155,210,0.3);border:1px solid #6C9BD2"></div>
-          Idle animation — frames 0–3, loops continuously
+          Idle animation — frames 0–2, loops continuously
         </div>
         <div class="legend-item">
           <div class="legend-dot" style="background:rgba(251,146,60,0.3);border:1px solid #fb923c"></div>
-          React animation — frames 4–6, plays once on click then returns to idle
+          React animation — frames 3–4 (wave), plays once on click then returns to idle
         </div>
       </div>
 
@@ -265,15 +265,15 @@
     <h2>metadata.json Format</h2>
     <div class="card">
       <pre><code>{
-  <span class="tok-key">"frameWidth"</span>: <span class="tok-num">32</span>,        <span class="tok-comment">// width of a single frame in pixels</span>
-  <span class="tok-key">"frameHeight"</span>: <span class="tok-num">32</span>,       <span class="tok-comment">// height of a single frame in pixels</span>
+  <span class="tok-key">"frameWidth"</span>: <span class="tok-num">512</span>,       <span class="tok-comment">// width of a single frame in pixels</span>
+  <span class="tok-key">"frameHeight"</span>: <span class="tok-num">512</span>,      <span class="tok-comment">// height of a single frame in pixels</span>
   <span class="tok-key">"animations"</span>: {
     <span class="tok-key">"idle"</span>: {
-      <span class="tok-key">"frames"</span>: [<span class="tok-num">0</span>, <span class="tok-num">1</span>, <span class="tok-num">2</span>, <span class="tok-num">3</span>],  <span class="tok-comment">// zero-based frame indices, left → right</span>
+      <span class="tok-key">"frames"</span>: [<span class="tok-num">0</span>, <span class="tok-num">1</span>, <span class="tok-num">2</span>, <span class="tok-num">1</span>],  <span class="tok-comment">// zero-based frame indices, left → right, top → bottom</span>
       <span class="tok-key">"loop"</span>: <span class="tok-bool">true</span>              <span class="tok-comment">// repeats forever</span>
     },
     <span class="tok-key">"react"</span>: {
-      <span class="tok-key">"frames"</span>: [<span class="tok-num">4</span>, <span class="tok-num">5</span>, <span class="tok-num">6</span>],       <span class="tok-comment">// plays once on click, then idle resumes</span>
+      <span class="tok-key">"frames"</span>: [<span class="tok-num">3</span>, <span class="tok-num">4</span>, <span class="tok-num">4</span>, <span class="tok-num">3</span>], <span class="tok-comment">// plays once on click, then idle resumes</span>
       <span class="tok-key">"loop"</span>: <span class="tok-bool">false</span>
     }
   }
@@ -305,11 +305,11 @@
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
         <div>
-          <p style="font-size:0.78rem; color:#6e7681; margin-bottom:8px; font-weight:600; text-transform:uppercase; letter-spacing:.06em;">Single-row sheet (7 frames × 32px)</p>
+          <p style="font-size:0.78rem; color:#6e7681; margin-bottom:8px; font-weight:600; text-transform:uppercase; letter-spacing:.06em;">All frames in one row</p>
           <div id="diagram-single" style="overflow-x:auto;"></div>
         </div>
         <div>
-          <p style="font-size:0.78rem; color:#6e7681; margin-bottom:8px; font-weight:600; text-transform:uppercase; letter-spacing:.06em;">Two-row sheet (4 idle + 3 react)</p>
+          <p style="font-size:0.78rem; color:#6e7681; margin-bottom:8px; font-weight:600; text-transform:uppercase; letter-spacing:.06em;">This sheet — 3 × 2 grid (512px frames)</p>
           <div id="diagram-tworow" style="overflow-x:auto;"></div>
         </div>
       </div>
@@ -439,288 +439,128 @@ await engine.start();
 <script>
   const { createBrowserMascot } = TinyMascot;
 
-  (async () => {
+  // Your real mascot sheet: 1536×1024 = a 3 × 2 grid of 512 × 512 frames.
+  // Frames (0-based, left→right, top→bottom): 5 used, last cell empty.
+  const SHEET_URL = '../public/mascot-sheet.png';
+  const COLS = 3, ROWS = 2;
 
-  // ─── Sprite drawing utilities ─────────────────────────────────────────────
-
-  function roundRect(ctx, x, y, w, h, r) {
-    r = Math.min(r, w / 2, h / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-  }
-
-  function drawBlob(ctx, frameIdx, opts = {}) {
-    const {
-      yOff = 0,
-      scaleX = 1,
-      scaleY = 1,
-      eyeOpen = true,
-      sparkle = false
-    } = opts;
-
-    const FW = 32, FH = 32;
-    const BASE = 22;
-    const bw = Math.round(BASE * scaleX);
-    const bh = Math.round(BASE * scaleY);
-    const ox = frameIdx * FW;
-    const bx = ox + Math.floor((FW - bw) / 2);
-    const by = Math.floor((FH - bh) / 2) + yOff;
-
-    // drop shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-    ctx.beginPath();
-    ctx.ellipse(ox + FW / 2, FH - 3, bw * 0.42, 2, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // body
-    ctx.fillStyle = '#6C9BD2';
-    roundRect(ctx, bx, by, bw, bh, Math.min(bw, bh) * 0.45);
-    ctx.fill();
-
-    // inner shading
-    ctx.fillStyle = '#5a8ac4';
-    roundRect(ctx, bx, by + bh * 0.6, bw, bh * 0.42, Math.min(bw, bh) * 0.45);
-    ctx.fill();
-
-    // highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.28)';
-    roundRect(ctx, bx + 3, by + 3, Math.max(4, bw * 0.38), Math.max(3, bh * 0.25), 3);
-    ctx.fill();
-
-    // eye positions
-    const eyeY = by + bh * 0.33;
-    const eyeL = bx + bw * 0.26;
-    const eyeR = bx + bw * 0.66;
-
-    if (eyeOpen) {
-      // whites
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.ellipse(eyeL, eyeY, 3.5, 4, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(eyeR, eyeY, 3.5, 4, 0, 0, Math.PI * 2); ctx.fill();
-      // pupils
-      ctx.fillStyle = '#1a1a2e';
-      ctx.beginPath(); ctx.ellipse(eyeL + 0.5, eyeY + 0.5, 2.2, 2.8, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(eyeR + 0.5, eyeY + 0.5, 2.2, 2.8, 0, 0, Math.PI * 2); ctx.fill();
-      // shine
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(Math.round(eyeL + 1), Math.round(eyeY - 1), 1, 1);
-      ctx.fillRect(Math.round(eyeR + 1), Math.round(eyeY - 1), 1, 1);
-    } else {
-      // happy closed eyes (arc = upside-down smile)
-      ctx.strokeStyle = '#1a1a2e';
-      ctx.lineWidth = 1.5;
-      ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.arc(eyeL, eyeY + 1, 3.2, Math.PI + 0.2, -0.2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(eyeR, eyeY + 1, 3.2, Math.PI + 0.2, -0.2); ctx.stroke();
+  const metadata = {
+    frameWidth: 512,
+    frameHeight: 512,
+    animations: {
+      idle:  { frames: [0, 1, 2, 1], loop: true },
+      react: { frames: [3, 4, 4, 3], loop: false, next: 'idle' }
     }
+  };
 
-    // blush
-    ctx.fillStyle = 'rgba(255,100,100,0.3)';
-    ctx.beginPath(); ctx.ellipse(eyeL - 1, eyeY + 6, 4, 2.5, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(eyeR + 1, eyeY + 6, 4, 2.5, 0, 0, Math.PI * 2); ctx.fill();
-
-    // sparkles (react frame 6)
-    if (sparkle) {
-      ctx.fillStyle = '#FFD700';
-      [[bx - 5, by - 1], [bx + bw + 2, by + 2], [bx + bw / 2 - 1, by - 7]].forEach(([sx, sy]) => {
-        ctx.fillRect(sx, sy, 2, 2);
-        ctx.fillRect(sx - 2, sy + 1, 6, 1);
-        ctx.fillRect(sx + 0.5, sy - 2, 1, 6);
-      });
-    }
-  }
-
-  function buildSpriteCanvas() {
-    const FW = 32, FH = 32, FRAMES = 7;
-    const canvas = document.createElement('canvas');
-    canvas.width = FW * FRAMES;
-    canvas.height = FH;
-    const ctx = canvas.getContext('2d');
-
-    // idle: bob up, blink, bob down
-    drawBlob(ctx, 0, {});
-    drawBlob(ctx, 1, { yOff: -2 });
-    drawBlob(ctx, 2, { eyeOpen: false });
-    drawBlob(ctx, 3, { yOff: 2 });
-
-    // react: squish → stretch → sparkle
-    drawBlob(ctx, 4, { scaleX: 1.28, scaleY: 0.76, yOff: 5 });
-    drawBlob(ctx, 5, { scaleX: 0.80, scaleY: 1.24, yOff: -4 });
-    drawBlob(ctx, 6, { sparkle: true });
-
-    return canvas;
-  }
-
-  // ─── Render sprite sheet breakdown ───────────────────────────────────────
-
-  const FW = 32, FH = 32, FRAMES = 7;
-  const SCALE = 5;
-
-  const spriteCanvas = buildSpriteCanvas();
-
-  // main zoomed display with labels
-  const display = document.getElementById('sheet-display');
-  display.width = spriteCanvas.width * SCALE;
-  display.height = spriteCanvas.height * SCALE + 22;
-  const dctx = display.getContext('2d');
-  dctx.imageSmoothingEnabled = false;
-
-  // draw zoomed sprite
-  dctx.drawImage(spriteCanvas, 0, 0, spriteCanvas.width * SCALE, spriteCanvas.height * SCALE);
-
-  for (let i = 0; i < FRAMES; i++) {
-    const isReact = i >= 4;
-    const fx = i * FW * SCALE;
-    const fw = FW * SCALE;
-    const fh = FH * SCALE;
-
-    dctx.fillStyle = isReact ? 'rgba(251,146,60,0.12)' : 'rgba(108,155,210,0.12)';
-    dctx.fillRect(fx, 0, fw, fh);
-
-    dctx.strokeStyle = isReact ? '#fb923c' : '#6C9BD2';
-    dctx.lineWidth = 1.5;
-    dctx.strokeRect(fx + 0.75, 0.75, fw - 1.5, fh - 1.5);
-
-    // frame index badge (top-left of cell)
-    dctx.fillStyle = isReact ? '#fb923c' : '#6C9BD2';
-    dctx.font = `bold 10px monospace`;
-    dctx.fillText(String(i), fx + 4, fh - 5);
-  }
-
-  // row label below
-  dctx.font = '10px -apple-system, sans-serif';
-  dctx.fillStyle = '#6C9BD2';
-  dctx.fillText('← idle (frames 0–3)', 4, FH * SCALE + 15);
-  dctx.fillStyle = '#fb923c';
-  dctx.textAlign = 'right';
-  dctx.fillText('react (frames 4–6) →', display.width - 4, FH * SCALE + 15);
-  dctx.textAlign = 'left';
-
-  // ─── Frame map cards ──────────────────────────────────────────────────────
-
-  const frameDescs = [
-    ['0', 'idle', 'base pose'],
-    ['1', 'idle', 'bob up'],
-    ['2', 'idle', 'blink'],
-    ['3', 'idle', 'bob down'],
-    ['4', 'react', 'squish'],
-    ['5', 'react', 'stretch'],
-    ['6', 'react', 'sparkle'],
+  const FRAMES = [
+    { idx: 0, role: 'idle',  desc: 'look left' },
+    { idx: 1, role: 'idle',  desc: 'forward' },
+    { idx: 2, role: 'idle',  desc: 'smile' },
+    { idx: 3, role: 'react', desc: 'dip' },
+    { idx: 4, role: 'react', desc: 'wave' },
+    { idx: 5, role: 'empty', desc: 'unused' }
   ];
+  const STROKE = { idle: '#6C9BD2', react: '#fb923c', empty: '#30363d' };
+  const FILL   = { idle: 'rgba(108,155,210,0.10)', react: 'rgba(251,146,60,0.12)', empty: 'rgba(0,0,0,0.45)' };
 
-  const mapEl = document.getElementById('frame-map');
-  frameDescs.forEach(([idx, type, desc]) => {
-    const cell = document.createElement('div');
-    cell.className = `frame-cell ${type}`;
-    cell.innerHTML = `<span class="idx">${idx}</span><span class="desc">${desc}</span>`;
-    mapEl.appendChild(cell);
-  });
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('failed to load ' + src));
+      img.src = src;
+    });
+  }
 
-  // ─── Layout diagrams ──────────────────────────────────────────────────────
+  // crop frame `idx` out of the sheet into a destination rect
+  function drawFrame(ctx, sheet, idx, dx, dy, dw, dh) {
+    const sw = sheet.width / COLS, sh = sheet.height / ROWS;
+    const sx = (idx % COLS) * sw, sy = Math.floor(idx / COLS) * sh;
+    ctx.drawImage(sheet, sx, sy, sw, sh, dx, dy, dw, dh);
+  }
 
-  function makeDiagram(parent, rows) {
-    const CELL_W = 32, CELL_H = 32, LABEL_H = 16;
-    const cols = Math.max(...rows.map(r => r.length));
+  // thumbnail strip/grid of real frames, per a layout (rows of frame indices; null = gap)
+  function drawThumbs(parent, sheet, layout, thumb) {
+    const LABEL_H = 16;
+    const cols = Math.max(...layout.map(r => r.length));
     const canvas = document.createElement('canvas');
-    canvas.width = cols * CELL_W + 1;
-    canvas.height = rows.length * (CELL_H + LABEL_H) + 1;
-    canvas.style.imageRendering = 'pixelated';
+    canvas.width = cols * thumb + 1;
+    canvas.height = layout.length * (thumb + LABEL_H) + 1;
     const ctx = canvas.getContext('2d');
-
-    rows.forEach((row, ri) => {
-      row.forEach((cell, ci) => {
-        const x = ci * CELL_W;
-        const y = ri * (CELL_H + LABEL_H);
-        const isReact = cell.type === 'react';
-
-        // cell bg
-        ctx.fillStyle = isReact ? 'rgba(251,146,60,0.15)' : 'rgba(108,155,210,0.15)';
-        ctx.fillRect(x, y, CELL_W, CELL_H);
-
-        // border
-        ctx.strokeStyle = isReact ? '#fb923c' : '#6C9BD2';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x + 0.5, y + 0.5, CELL_W - 1, CELL_H - 1);
-
-        // frame index
-        ctx.fillStyle = isReact ? '#fb923c' : '#6C9BD2';
-        ctx.font = 'bold 8px monospace';
-        ctx.fillText(String(cell.idx), x + 3, y + CELL_H - 4);
-
-        // label bg
-        ctx.fillStyle = '#0d1117';
-        ctx.fillRect(x, y + CELL_H, CELL_W, LABEL_H);
-        ctx.fillStyle = '#484f58';
-        ctx.font = '7px sans-serif';
-        ctx.fillText(cell.label, x + 2, y + CELL_H + 10);
+    layout.forEach((row, ri) => {
+      row.forEach((idx, ci) => {
+        if (idx === null || idx === undefined) return;
+        const f = FRAMES[idx];
+        const x = ci * thumb, y = ri * (thumb + LABEL_H);
+        drawFrame(ctx, sheet, idx, x, y, thumb, thumb);
+        ctx.strokeStyle = STROKE[f.role]; ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, y + 0.5, thumb - 1, thumb - 1);
+        ctx.fillStyle = STROKE[f.role]; ctx.font = 'bold 9px monospace';
+        ctx.fillText(String(idx), x + 3, y + 12);
+        ctx.fillStyle = '#0d1117'; ctx.fillRect(x, y + thumb, thumb, LABEL_H);
+        ctx.fillStyle = '#6e7681'; ctx.font = '8px -apple-system, sans-serif';
+        ctx.fillText(f.desc, x + 2, y + thumb + 11);
       });
     });
-
     parent.appendChild(canvas);
   }
 
-  // single row
-  makeDiagram(document.getElementById('diagram-single'), [[
-    { idx: 0, type: 'idle',  label: 'idle0' },
-    { idx: 1, type: 'idle',  label: 'idle1' },
-    { idx: 2, type: 'idle',  label: 'idle2' },
-    { idx: 3, type: 'idle',  label: 'idle3' },
-    { idx: 4, type: 'react', label: 'react0' },
-    { idx: 5, type: 'react', label: 'react1' },
-    { idx: 6, type: 'react', label: 'react2' },
-  ]]);
+  (async () => {
+    const sheet = await loadImage(SHEET_URL);
 
-  // two rows
-  makeDiagram(document.getElementById('diagram-tworow'), [
-    [
-      { idx: 0, type: 'idle',  label: 'idle0' },
-      { idx: 1, type: 'idle',  label: 'idle1' },
-      { idx: 2, type: 'idle',  label: 'idle2' },
-      { idx: 3, type: 'idle',  label: 'idle3' },
-    ],
-    [
-      { idx: 4, type: 'react', label: 'react0' },
-      { idx: 5, type: 'react', label: 'react1' },
-      { idx: 6, type: 'react', label: 'react2' },
-    ],
-  ]);
+    // ─── Breakdown: the real sheet with a frame-grid overlay ───
+    const display = document.getElementById('sheet-display');
+    const scale = 720 / sheet.width;
+    const cellW = (sheet.width / COLS) * scale;
+    const cellH = (sheet.height / ROWS) * scale;
+    display.width = sheet.width * scale;
+    display.height = sheet.height * scale;
+    const dctx = display.getContext('2d');
+    dctx.drawImage(sheet, 0, 0, display.width, display.height);
 
-  // ─── Start live mascot ────────────────────────────────────────────────────
+    FRAMES.forEach(({ idx, role }) => {
+      const cx = (idx % COLS) * cellW;
+      const cy = Math.floor(idx / COLS) * cellH;
+      dctx.fillStyle = FILL[role];
+      dctx.fillRect(cx, cy, cellW, cellH);
+      dctx.strokeStyle = STROKE[role]; dctx.lineWidth = 2;
+      dctx.strokeRect(cx + 1, cy + 1, cellW - 2, cellH - 2);
+      dctx.fillStyle = STROKE[role];
+      dctx.fillRect(cx + 5, cy + 5, 24, 20);
+      dctx.fillStyle = '#0d1117'; dctx.font = 'bold 14px monospace';
+      dctx.fillText(role === 'empty' ? '–' : String(idx), cx + 10, cy + 20);
+    });
 
-  const spriteUrl = spriteCanvas.toDataURL('image/png');
-  const metadata = {
-    frameWidth: FW,
-    frameHeight: FH,
-    animations: {
-      idle:  { frames: [0, 1, 2, 3], loop: true },
-      react: { frames: [4, 5, 6],    loop: false }
-    }
-  };
-  const metaUrl = URL.createObjectURL(
-    new Blob([JSON.stringify(metadata)], { type: 'application/json' })
-  );
+    // ─── Frame map cards ───
+    const mapEl = document.getElementById('frame-map');
+    FRAMES.forEach(({ idx, role, desc }) => {
+      const cell = document.createElement('div');
+      cell.className = 'frame-cell' + (role === 'idle' ? ' idle' : role === 'react' ? ' react' : '');
+      if (role === 'empty') cell.style.opacity = '0.4';
+      cell.innerHTML = '<span class="idx">' + (role === 'empty' ? '–' : idx) +
+        '</span><span class="desc">' + desc + '</span>';
+      mapEl.appendChild(cell);
+    });
 
-  const engine = await createBrowserMascot({
-    spritesheet: spriteUrl,
-    metadata: metaUrl,
-    size: 64,
-    fps: 8,
-    position: 'bottom-right',
-    offsetX: 20,
-    offsetY: 20,
-  });
+    // ─── Layout diagrams (real frames cropped from the sheet) ───
+    drawThumbs(document.getElementById('diagram-single'), sheet, [[0, 1, 2, 3, 4]], 72);
+    drawThumbs(document.getElementById('diagram-tworow'), sheet, [[0, 1, 2], [3, 4, null]], 72);
 
-  await engine.start();
-
+    // ─── Live mascot — your actual cat ───
+    const metaUrl = URL.createObjectURL(
+      new Blob([JSON.stringify(metadata)], { type: 'application/json' })
+    );
+    const engine = await createBrowserMascot({
+      spritesheet: SHEET_URL,
+      metadata: metaUrl,
+      size: 140,
+      fps: 4,
+      position: 'bottom-right',
+      offsetX: 24,
+      offsetY: 24
+    });
+    await engine.start();
   })();
 </script>
 </body>
