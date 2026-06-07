@@ -1,0 +1,31 @@
+export class FrameTimer {
+  private interval: number;
+  private accumulator = 0;
+  private lastTick = 0;
+
+  constructor(fps: number) {
+    this.interval = 1000 / fps;
+  }
+
+  setFps(fps: number): void {
+    this.interval = 1000 / fps;
+  }
+
+  shouldAdvance(now: number): boolean {
+    if (this.lastTick === 0) {
+      this.lastTick = now;
+      return false;
+    }
+
+    const delta = now - this.lastTick;
+    this.lastTick = now;
+    this.accumulator += delta;
+
+    if (this.accumulator < this.interval) {
+      return false;
+    }
+
+    this.accumulator -= this.interval;
+    return true;
+  }
+}
