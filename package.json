@@ -1,0 +1,41 @@
+{
+  "name": "mascot-plugin",
+  "version": "1.0.0",
+  "description": "a plugin to add my mascot to any website/software with GUI",
+  "main": "dist/index.cjs",
+  "scripts": {
+    "build": "tsup packages/core/src/index.ts packages/react/src/index.ts packages/web-component/src/index.ts --dts --format esm,cjs --clean --out-dir dist",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ch1kim0n1/mascot-plugin.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/ch1kim0n1/mascot-plugin/issues"
+  },
+  "homepage": "https://github.com/ch1kim0n1/mascot-plugin#readme",
+  "dependencies": {
+    "react": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.60.1",
+    "@typescript-eslint/parser": "^8.60.1",
+    "eslint": "^10.4.1",
+    "jsdom": "^29.1.1",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.8"
+  },
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts"
+}
