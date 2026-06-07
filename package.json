@@ -8,7 +8,8 @@
   "scripts": {
     "build": "tsup --entry.index packages/core/src/index.ts --entry.react packages/react/src/index.ts --entry.webcomponent packages/web-component/src/index.ts --entry.terminal packages/renderers/terminal/src/index.ts --entry.node packages/runtimes/node/src/index.ts --entry.cli packages/cli/src/index.ts --entry.electron packages/runtimes/electron/src/index.ts --entry.tauri packages/runtimes/tauri/src/index.ts --entry.vue packages/vue/src/index.ts --entry.svelte packages/svelte/src/index.ts --entry.solid packages/solid/src/index.ts --entry.preact packages/preact/src/index.ts --entry.plugins packages/plugins/src/index.ts --entry.obs packages/integrations/obs/src/index.ts --entry.asset-pipeline packages/asset-pipeline/src/index.ts --dts --format esm,cjs --clean --out-dir dist",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "example": "esbuild packages/core/src/index.ts --bundle --format=iife --global-name=TinyMascot --outfile=example/tiny-mascot.global.js"
   },
   "repository": {
     "type": "git",

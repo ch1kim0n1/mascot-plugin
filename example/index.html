@@ -433,8 +433,13 @@ await engine.start();
 
 </div><!-- /container -->
 
-<script type="module">
-  import { createBrowserMascot } from '../dist/index.js';
+<!-- Engine bundled as a classic (non-module) global so this page works on
+     file:// double-click as well as over a server. Rebuild with `npm run example`. -->
+<script src="./tiny-mascot.global.js"></script>
+<script>
+  const { createBrowserMascot } = TinyMascot;
+
+  (async () => {
 
   // ─── Sprite drawing utilities ─────────────────────────────────────────────
 
@@ -715,6 +720,8 @@ await engine.start();
   });
 
   await engine.start();
+
+  })();
 </script>
 </body>
 </html>

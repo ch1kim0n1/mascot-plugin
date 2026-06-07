@@ -218,8 +218,29 @@ const engine = new MascotEngine({
 await engine.start();
 ```
 
+## Running the example
+
+`example/index.html` is a self-contained visual demo (live mascot + sprite-sheet
+breakdown). It loads the engine as a classic-script global bundle
+(`example/tiny-mascot.global.js`), so it works **two ways**:
+
+- **Double-click** `example/index.html` (opens as `file://`) — works directly.
+- **Or serve it**: `python3 -m http.server 8077` then open
+  `http://localhost:8077/example/index.html`.
+
+The live mascot animates via `requestAnimationFrame`; it renders in any real
+browser. (Headless screenshot tools that fast-forward virtual time only fire
+rAF once, so they will not capture the animation — open it in a real browser.)
+
+Rebuild the example bundle after changing the core engine:
+
+```sh
+npm run example
+```
+
 ## Scripts
 
-- `npm run build`
-- `npm test`
-- `npm run lint`
+- `npm run build` — build all package entries (ESM + CJS + d.ts)
+- `npm test` — run the vitest suite
+- `npm run lint` — eslint
+- `npm run example` — rebuild the standalone example bundle
