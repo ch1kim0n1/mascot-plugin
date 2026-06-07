@@ -4,6 +4,37 @@ A tiny mascot engine that started as a website overlay and now runs across
 platforms: **one engine, many renderers**. The core knows nothing about the DOM —
 it drives a swappable `Renderer` + `Runtime` through an `EventBus`.
 
+![Tiny Mascot example page](docs/images/example.png)
+
+### Sprite frames
+
+Drop a mascot into any page from a single sprite sheet. The demo cat below is
+sliced from a uniform grid; `idle` cycles the calm frames and `react` plays the
+wave on click.
+
+![Mascot animation frames](docs/images/cat-frames.png)
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A[MascotEngine<br/>state machine · animation · plugins] -->|drives| R[Renderer]
+    A -->|drives| RT[Runtime]
+    EB[EventBus] <-->|events| A
+    RT -->|click / hover / key / external| EB
+    R -.implements.-> R1[Canvas]
+    R -.implements.-> R2[Terminal ANSI/ASCII]
+    R -.implements.-> R3[your renderer]
+    RT -.implements.-> T1[Browser]
+    RT -.implements.-> T2[Node / CLI]
+    RT -.implements.-> T3[Electron · Tauri]
+```
+
+The engine is platform-agnostic. A **Renderer** decides *how* a frame is drawn
+(canvas pixels, terminal characters, …); a **Runtime** decides *where* it lives
+and supplies the loop, viewport, and input (browser, Node, Electron, Tauri).
+Everything talks over a typed **EventBus**.
+
 ## Features
 
 - Platform-agnostic core: `Renderer` + `Runtime` + `EventBus` abstractions
@@ -171,6 +202,16 @@ await mascot.start();
 
 `NodeRuntime` drives the loop and forwards key presses; `TerminalRenderer`
 positions ASCII frames with ANSI cursor codes. See `packages/cli/src/demo.ts`.
+
+The bundled `cutie.json` pack animates in the terminal corner (idle loop, reacts on keypress):
+
+```
+┌──────────────────────────────┐
+│ (^_^)   idle frame 0          │
+│ (-_-)   idle frame 1 (blink)  │
+│ (^o^)   react frame (keypress)│
+└──────────────────────────────┘
+```
 
 ## Plugins
 
