@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tiny Mascot — Live Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      min-height: 100vh;
+      padding: 48px 24px 120px;
+    }
+
+    .container { max-width: 860px; margin: 0 auto; }
+
+    .hero { margin-bottom: 56px; }
+    .hero h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #6C9BD2 0%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+    .hero p { color: #6e7681; font-size: 1rem; }
+    .hero .hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      padding: 8px 14px;
+      background: rgba(108,155,210,0.08);
+      border: 1px solid rgba(108,155,210,0.2);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: #8ba4c8;
+    }
+
+    section { margin-bottom: 52px; }
+
+    h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #e6edf3;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h2::before {
+      content: '';
+      display: block;
+      width: 3px;
+      height: 16px;
+      border-radius: 2px;
+      background: linear-gradient(180deg, #6C9BD2, #a78bfa);
+      flex-shrink: 0;
+    }
+
+    .card {
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    /* ─── Sheet viewer ─────────────────────────── */
+    .sheet-wrap {
+      overflow-x: auto;
+      border-radius: 8px;
+      background: #0d1117;
+      border: 1px solid #21262d;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    #sheet-display {
+      image-rendering: pixelated;
+      display: block;
+    }
+
+    .legend {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.82rem;
+      color: #6e7681;
+    }
+    .legend-dot {
+      width: 12px; height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .frame-map {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+    .frame-cell {
+      border-radius: 6px;
+      padding: 8px 4px 6px;
+      text-align: center;
+      border: 1px solid transparent;
+    }
+    .frame-cell.idle {
+      background: rgba(108,155,210,0.08);
+      border-color: rgba(108,155,210,0.2);
+    }
+    .frame-cell.react {
+      background: rgba(251,146,60,0.08);
+      border-color: rgba(251,146,60,0.2);
+    }
+    .frame-cell .idx {
+      font-family: monospace;
+      font-size: 1rem;
+      font-weight: 700;
+      display: block;
+    }
+    .frame-cell.idle .idx { color: #6C9BD2; }
+    .frame-cell.react .idx { color: #fb923c; }
+    .frame-cell .desc {
+      font-size: 0.68rem;
+      color: #6e7681;
+      display: block;
+      margin-top: 2px;
+      line-height: 1.3;
+    }
+
+    /* ─── Code blocks ──────────────────────────── */
+    pre {
+      background: #0d1117;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      padding: 18px;
+      overflow-x: auto;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      tab-size: 2;
+    }
+    code { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
+    .tok-comment { color: #484f58; }
+    .tok-key     { color: #6C9BD2; }
+    .tok-str     { color: #a5d6a7; }
+    .tok-num     { color: #ffb74d; }
+    .tok-bool    { color: #ce93d8; }
+    .tok-tag     { color: #f97583; }
+    .tok-attr    { color: #6C9BD2; }
+    .tok-val     { color: #a5d6a7; }
+
+    .callout {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      padding: 12px 16px;
+      background: rgba(108,155,210,0.06);
+      border: 1px solid rgba(108,155,210,0.15);
+      border-radius: 8px;
+      font-size: 0.83rem;
+      color: #8ba4c8;
+      line-height: 1.5;
+    }
+    .callout-icon { font-size: 1rem; flex-shrink: 0; }
+
+    /* ─── Usage grid ───────────────────────────── */
+    .usage-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 580px) { .usage-grid { grid-template-columns: 1fr; } }
+
+    .usage-block h3 {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #484f58;
+      margin-bottom: 8px;
+    }
+    .usage-block pre {
+      margin: 0;
+      font-size: 0.78rem;
+    }
+
+    /* ─── Position table ───────────────────────── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid #21262d;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    th {
+      background: #161b22;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 500;
+      color: #6e7681;
+      border-bottom: 1px solid #21262d;
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #161b22;
+      background: #0d1117;
+    }
+    tr:last-child td { border-bottom: none; }
+    td:first-child { font-family: monospace; color: #6C9BD2; }
+    .arrow { color: #6e7681; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="hero">
+    <h1>Tiny Mascot</h1>
+    <p>Embeddable pixel mascot engine — sprite sheets, canvas rendering, Shadow DOM isolation.</p>
+    <div class="hint">
+      <span>👆</span>
+      Mascot is live in the bottom-right corner. Click it to trigger the react animation.
+    </div>
+  </div>
+
+  <!-- SPRITE SHEET BREAKDOWN -->
+  <section>
+    <h2>Sprite Sheet Breakdown</h2>
+    <div class="card">
+      <p style="font-size:0.84rem; color:#6e7681; margin-bottom:14px;">
+        The engine reads frames left-to-right. Each frame is <code style="color:#c9d1d9">frameWidth × frameHeight</code> pixels.
+        Frames wrap to the next row when the image width is exceeded.
+      </p>
+
+      <div class="sheet-wrap">
+        <canvas id="sheet-display"></canvas>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background:rgba(108,155,210,0.3);border:1px solid #6C9BD2"></div>
+          Idle animation — frames 0–3, loops continuously
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:rgba(251,146,60,0.3);border:1px solid #fb923c"></div>
+          React animation — frames 4–6, plays once on click then returns to idle
+        </div>
+      </div>
+
+      <div class="frame-map" id="frame-map"></div>
+    </div>
+  </section>
+
+  <!-- METADATA FORMAT -->
+  <section>
+    <h2>metadata.json Format</h2>
+    <div class="card">
+      <pre><code>{
+  <span class="tok-key">"frameWidth"</span>: <span class="tok-num">32</span>,        <span class="tok-comment">// width of a single frame in pixels</span>
+  <span class="tok-key">"frameHeight"</span>: <span class="tok-num">32</span>,       <span class="tok-comment">// height of a single frame in pixels</span>
+  <span class="tok-key">"animations"</span>: {
+    <span class="tok-key">"idle"</span>: {
+      <span class="tok-key">"frames"</span>: [<span class="tok-num">0</span>, <span class="tok-num">1</span>, <span class="tok-num">2</span>, <span class="tok-num">3</span>],  <span class="tok-comment">// zero-based frame indices, left → right</span>
+      <span class="tok-key">"loop"</span>: <span class="tok-bool">true</span>              <span class="tok-comment">// repeats forever</span>
+    },
+    <span class="tok-key">"react"</span>: {
+      <span class="tok-key">"frames"</span>: [<span class="tok-num">4</span>, <span class="tok-num">5</span>, <span class="tok-num">6</span>],       <span class="tok-comment">// plays once on click, then idle resumes</span>
+      <span class="tok-key">"loop"</span>: <span class="tok-bool">false</span>
+    }
+  }
+}</code></pre>
+
+      <div class="callout">
+        <span class="callout-icon">📐</span>
+        <div>
+          <strong>Frame position formula:</strong>
+          Frame <em>N</em> starts at
+          <code>x = (N % framesPerRow) × frameWidth</code>,
+          <code>y = floor(N / framesPerRow) × frameHeight</code> —
+          where <code>framesPerRow = imageWidth / frameWidth</code>.
+          Single-row sheets always have <code>y = 0</code>.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUILDING YOUR SHEET -->
+  <section>
+    <h2>Building Your Character Sheet</h2>
+    <div class="card">
+      <p style="font-size:0.84rem; color:#6e7681; margin-bottom:18px;">
+        Lay out all animation frames on a single PNG. Frames are uniform — every cell is
+        exactly <code style="color:#c9d1d9">frameWidth × frameHeight</code> pixels.
+        Arrange idle frames first (they loop), then react frames.
+      </p>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div>
+          <p style="font-size:0.78rem; color:#6e7681; margin-bottom:8px; font-weight:600; text-transform:uppercase; letter-spacing:.06em;">Single-row sheet (7 frames × 32px)</p>
+          <div id="diagram-single" style="overflow-x:auto;"></div>
+        </div>
+        <div>
+          <p style="font-size:0.78rem; color:#6e7681; margin-bottom:8px; font-weight:600; text-transform:uppercase; letter-spacing:.06em;">Two-row sheet (4 idle + 3 react)</p>
+          <div id="diagram-tworow" style="overflow-x:auto;"></div>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:20px;">
+        <span class="callout-icon">🎨</span>
+        <div>
+          Recommended tools: <strong>Aseprite</strong> (export spritesheet + JSON),
+          <strong>Piskel</strong> (free, browser-based), or any pixel editor that exports a packed spritesheet.
+          Set <code>frameWidth</code> and <code>frameHeight</code> to match the export cell size.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- USAGE -->
+  <section>
+    <h2>Usage</h2>
+    <div class="usage-grid">
+      <div class="usage-block">
+        <h3>React</h3>
+        <pre><code><span class="tok-comment">// npm install mascot-plugin</span>
+import { Mascot } from <span class="tok-str">'mascot-plugin/react'</span>;
+
+&lt;<span class="tok-tag">Mascot</span>
+  <span class="tok-attr">spritesheet</span>=<span class="tok-val">"/mascot.png"</span>
+  <span class="tok-attr">metadata</span>=<span class="tok-val">"/metadata.json"</span>
+  <span class="tok-attr">size</span>={<span class="tok-num">64</span>}
+  <span class="tok-attr">fps</span>={<span class="tok-num">8</span>}
+  <span class="tok-attr">position</span>=<span class="tok-val">"bottom-right"</span>
+  <span class="tok-attr">offsetX</span>={<span class="tok-num">20</span>}
+  <span class="tok-attr">offsetY</span>={<span class="tok-num">20</span>}
+/&gt;</code></pre>
+      </div>
+      <div class="usage-block">
+        <h3>Web Component</h3>
+        <pre><code><span class="tok-comment">// import once (e.g. in main.js)</span>
+import <span class="tok-str">'mascot-plugin/web-component'</span>;
+
+&lt;<span class="tok-tag">tiny-mascot</span>
+  <span class="tok-attr">spritesheet</span>=<span class="tok-val">"/mascot.png"</span>
+  <span class="tok-attr">metadata</span>=<span class="tok-val">"/metadata.json"</span>
+  <span class="tok-attr">size</span>=<span class="tok-val">"64"</span>
+  <span class="tok-attr">fps</span>=<span class="tok-val">"8"</span>
+  <span class="tok-attr">position</span>=<span class="tok-val">"bottom-right"</span>
+  <span class="tok-attr">offset-x</span>=<span class="tok-val">"20"</span>
+  <span class="tok-attr">offset-y</span>=<span class="tok-val">"20"</span>&gt;
+&lt;/<span class="tok-tag">tiny-mascot</span>&gt;</code></pre>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;">
+      <div class="usage-block">
+        <h3>Vanilla JS</h3>
+        <pre><code>import { MascotEngine } from <span class="tok-str">'mascot-plugin'</span>;
+
+const engine = new MascotEngine({
+  spritesheet: <span class="tok-str">'/mascot.png'</span>,
+  metadata: <span class="tok-str">'/metadata.json'</span>,
+  size: <span class="tok-num">64</span>,
+  fps: <span class="tok-num">8</span>,
+  position: <span class="tok-str">'bottom-right'</span>,
+  offsetX: <span class="tok-num">20</span>,
+  offsetY: <span class="tok-num">20</span>,
+});
+
+await engine.start();
+<span class="tok-comment">// engine.stop() to unmount</span></code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- POSITION PRESETS -->
+  <section>
+    <h2>Position Presets</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>position</th>
+            <th>Anchor</th>
+            <th>offsetX (positive =)</th>
+            <th>offsetY (positive =)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>top-left</td>
+            <td>Top-left corner</td>
+            <td><span class="arrow">→</span> right into viewport</td>
+            <td><span class="arrow">↓</span> down into viewport</td>
+          </tr>
+          <tr>
+            <td>top-right</td>
+            <td>Top-right corner</td>
+            <td><span class="arrow">←</span> left (inward)</td>
+            <td><span class="arrow">↓</span> down into viewport</td>
+          </tr>
+          <tr>
+            <td>bottom-left</td>
+            <td>Bottom-left corner</td>
+            <td><span class="arrow">→</span> right into viewport</td>
+            <td><span class="arrow">↑</span> up (inward)</td>
+          </tr>
+          <tr>
+            <td>bottom-right</td>
+            <td>Bottom-right corner</td>
+            <td><span class="arrow">←</span> left (inward)</td>
+            <td><span class="arrow">↑</span> up (inward)</td>
+          </tr>
+          <tr>
+            <td>center</td>
+            <td>Viewport center</td>
+            <td><span class="arrow">→</span> right from center</td>
+            <td><span class="arrow">↓</span> down from center</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div><!-- /container -->
+
+<script type="module">
+  import { createBrowserMascot } from '../dist/index.js';
+
+  // ─── Sprite drawing utilities ─────────────────────────────────────────────
+
+  function roundRect(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function drawBlob(ctx, frameIdx, opts = {}) {
+    const {
+      yOff = 0,
+      scaleX = 1,
+      scaleY = 1,
+      eyeOpen = true,
+      sparkle = false
+    } = opts;
+
+    const FW = 32, FH = 32;
+    const BASE = 22;
+    const bw = Math.round(BASE * scaleX);
+    const bh = Math.round(BASE * scaleY);
+    const ox = frameIdx * FW;
+    const bx = ox + Math.floor((FW - bw) / 2);
+    const by = Math.floor((FH - bh) / 2) + yOff;
+
+    // drop shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(ox + FW / 2, FH - 3, bw * 0.42, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // body
+    ctx.fillStyle = '#6C9BD2';
+    roundRect(ctx, bx, by, bw, bh, Math.min(bw, bh) * 0.45);
+    ctx.fill();
+
+    // inner shading
+    ctx.fillStyle = '#5a8ac4';
+    roundRect(ctx, bx, by + bh * 0.6, bw, bh * 0.42, Math.min(bw, bh) * 0.45);
+    ctx.fill();
+
+    // highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    roundRect(ctx, bx + 3, by + 3, Math.max(4, bw * 0.38), Math.max(3, bh * 0.25), 3);
+    ctx.fill();
+
+    // eye positions
+    const eyeY = by + bh * 0.33;
+    const eyeL = bx + bw * 0.26;
+    const eyeR = bx + bw * 0.66;
+
+    if (eyeOpen) {
+      // whites
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.ellipse(eyeL, eyeY, 3.5, 4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(eyeR, eyeY, 3.5, 4, 0, 0, Math.PI * 2); ctx.fill();
+      // pupils
+      ctx.fillStyle = '#1a1a2e';
+      ctx.beginPath(); ctx.ellipse(eyeL + 0.5, eyeY + 0.5, 2.2, 2.8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(eyeR + 0.5, eyeY + 0.5, 2.2, 2.8, 0, 0, Math.PI * 2); ctx.fill();
+      // shine
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(Math.round(eyeL + 1), Math.round(eyeY - 1), 1, 1);
+      ctx.fillRect(Math.round(eyeR + 1), Math.round(eyeY - 1), 1, 1);
+    } else {
+      // happy closed eyes (arc = upside-down smile)
+      ctx.strokeStyle = '#1a1a2e';
+      ctx.lineWidth = 1.5;
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(eyeL, eyeY + 1, 3.2, Math.PI + 0.2, -0.2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(eyeR, eyeY + 1, 3.2, Math.PI + 0.2, -0.2); ctx.stroke();
+    }
+
+    // blush
+    ctx.fillStyle = 'rgba(255,100,100,0.3)';
+    ctx.beginPath(); ctx.ellipse(eyeL - 1, eyeY + 6, 4, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(eyeR + 1, eyeY + 6, 4, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+
+    // sparkles (react frame 6)
+    if (sparkle) {
+      ctx.fillStyle = '#FFD700';
+      [[bx - 5, by - 1], [bx + bw + 2, by + 2], [bx + bw / 2 - 1, by - 7]].forEach(([sx, sy]) => {
+        ctx.fillRect(sx, sy, 2, 2);
+        ctx.fillRect(sx - 2, sy + 1, 6, 1);
+        ctx.fillRect(sx + 0.5, sy - 2, 1, 6);
+      });
+    }
+  }
+
+  function buildSpriteCanvas() {
+    const FW = 32, FH = 32, FRAMES = 7;
+    const canvas = document.createElement('canvas');
+    canvas.width = FW * FRAMES;
+    canvas.height = FH;
+    const ctx = canvas.getContext('2d');
+
+    // idle: bob up, blink, bob down
+    drawBlob(ctx, 0, {});
+    drawBlob(ctx, 1, { yOff: -2 });
+    drawBlob(ctx, 2, { eyeOpen: false });
+    drawBlob(ctx, 3, { yOff: 2 });
+
+    // react: squish → stretch → sparkle
+    drawBlob(ctx, 4, { scaleX: 1.28, scaleY: 0.76, yOff: 5 });
+    drawBlob(ctx, 5, { scaleX: 0.80, scaleY: 1.24, yOff: -4 });
+    drawBlob(ctx, 6, { sparkle: true });
+
+    return canvas;
+  }
+
+  // ─── Render sprite sheet breakdown ───────────────────────────────────────
+
+  const FW = 32, FH = 32, FRAMES = 7;
+  const SCALE = 5;
+
+  const spriteCanvas = buildSpriteCanvas();
+
+  // main zoomed display with labels
+  const display = document.getElementById('sheet-display');
+  display.width = spriteCanvas.width * SCALE;
+  display.height = spriteCanvas.height * SCALE + 22;
+  const dctx = display.getContext('2d');
+  dctx.imageSmoothingEnabled = false;
+
+  // draw zoomed sprite
+  dctx.drawImage(spriteCanvas, 0, 0, spriteCanvas.width * SCALE, spriteCanvas.height * SCALE);
+
+  for (let i = 0; i < FRAMES; i++) {
+    const isReact = i >= 4;
+    const fx = i * FW * SCALE;
+    const fw = FW * SCALE;
+    const fh = FH * SCALE;
+
+    dctx.fillStyle = isReact ? 'rgba(251,146,60,0.12)' : 'rgba(108,155,210,0.12)';
+    dctx.fillRect(fx, 0, fw, fh);
+
+    dctx.strokeStyle = isReact ? '#fb923c' : '#6C9BD2';
+    dctx.lineWidth = 1.5;
+    dctx.strokeRect(fx + 0.75, 0.75, fw - 1.5, fh - 1.5);
+
+    // frame index badge (top-left of cell)
+    dctx.fillStyle = isReact ? '#fb923c' : '#6C9BD2';
+    dctx.font = `bold 10px monospace`;
+    dctx.fillText(String(i), fx + 4, fh - 5);
+  }
+
+  // row label below
+  dctx.font = '10px -apple-system, sans-serif';
+  dctx.fillStyle = '#6C9BD2';
+  dctx.fillText('← idle (frames 0–3)', 4, FH * SCALE + 15);
+  dctx.fillStyle = '#fb923c';
+  dctx.textAlign = 'right';
+  dctx.fillText('react (frames 4–6) →', display.width - 4, FH * SCALE + 15);
+  dctx.textAlign = 'left';
+
+  // ─── Frame map cards ──────────────────────────────────────────────────────
+
+  const frameDescs = [
+    ['0', 'idle', 'base pose'],
+    ['1', 'idle', 'bob up'],
+    ['2', 'idle', 'blink'],
+    ['3', 'idle', 'bob down'],
+    ['4', 'react', 'squish'],
+    ['5', 'react', 'stretch'],
+    ['6', 'react', 'sparkle'],
+  ];
+
+  const mapEl = document.getElementById('frame-map');
+  frameDescs.forEach(([idx, type, desc]) => {
+    const cell = document.createElement('div');
+    cell.className = `frame-cell ${type}`;
+    cell.innerHTML = `<span class="idx">${idx}</span><span class="desc">${desc}</span>`;
+    mapEl.appendChild(cell);
+  });
+
+  // ─── Layout diagrams ──────────────────────────────────────────────────────
+
+  function makeDiagram(parent, rows) {
+    const CELL_W = 32, CELL_H = 32, LABEL_H = 16;
+    const cols = Math.max(...rows.map(r => r.length));
+    const canvas = document.createElement('canvas');
+    canvas.width = cols * CELL_W + 1;
+    canvas.height = rows.length * (CELL_H + LABEL_H) + 1;
+    canvas.style.imageRendering = 'pixelated';
+    const ctx = canvas.getContext('2d');
+
+    rows.forEach((row, ri) => {
+      row.forEach((cell, ci) => {
+        const x = ci * CELL_W;
+        const y = ri * (CELL_H + LABEL_H);
+        const isReact = cell.type === 'react';
+
+        // cell bg
+        ctx.fillStyle = isReact ? 'rgba(251,146,60,0.15)' : 'rgba(108,155,210,0.15)';
+        ctx.fillRect(x, y, CELL_W, CELL_H);
+
+        // border
+        ctx.strokeStyle = isReact ? '#fb923c' : '#6C9BD2';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, y + 0.5, CELL_W - 1, CELL_H - 1);
+
+        // frame index
+        ctx.fillStyle = isReact ? '#fb923c' : '#6C9BD2';
+        ctx.font = 'bold 8px monospace';
+        ctx.fillText(String(cell.idx), x + 3, y + CELL_H - 4);
+
+        // label bg
+        ctx.fillStyle = '#0d1117';
+        ctx.fillRect(x, y + CELL_H, CELL_W, LABEL_H);
+        ctx.fillStyle = '#484f58';
+        ctx.font = '7px sans-serif';
+        ctx.fillText(cell.label, x + 2, y + CELL_H + 10);
+      });
+    });
+
+    parent.appendChild(canvas);
+  }
+
+  // single row
+  makeDiagram(document.getElementById('diagram-single'), [[
+    { idx: 0, type: 'idle',  label: 'idle0' },
+    { idx: 1, type: 'idle',  label: 'idle1' },
+    { idx: 2, type: 'idle',  label: 'idle2' },
+    { idx: 3, type: 'idle',  label: 'idle3' },
+    { idx: 4, type: 'react', label: 'react0' },
+    { idx: 5, type: 'react', label: 'react1' },
+    { idx: 6, type: 'react', label: 'react2' },
+  ]]);
+
+  // two rows
+  makeDiagram(document.getElementById('diagram-tworow'), [
+    [
+      { idx: 0, type: 'idle',  label: 'idle0' },
+      { idx: 1, type: 'idle',  label: 'idle1' },
+      { idx: 2, type: 'idle',  label: 'idle2' },
+      { idx: 3, type: 'idle',  label: 'idle3' },
+    ],
+    [
+      { idx: 4, type: 'react', label: 'react0' },
+      { idx: 5, type: 'react', label: 'react1' },
+      { idx: 6, type: 'react', label: 'react2' },
+    ],
+  ]);
+
+  // ─── Start live mascot ────────────────────────────────────────────────────
+
+  const spriteUrl = spriteCanvas.toDataURL('image/png');
+  const metadata = {
+    frameWidth: FW,
+    frameHeight: FH,
+    animations: {
+      idle:  { frames: [0, 1, 2, 3], loop: true },
+      react: { frames: [4, 5, 6],    loop: false }
+    }
+  };
+  const metaUrl = URL.createObjectURL(
+    new Blob([JSON.stringify(metadata)], { type: 'application/json' })
+  );
+
+  const engine = await createBrowserMascot({
+    spritesheet: spriteUrl,
+    metadata: metaUrl,
+    size: 64,
+    fps: 8,
+    position: 'bottom-right',
+    offsetX: 20,
+    offsetY: 20,
+  });
+
+  await engine.start();
+</script>
+</body>
+</html>

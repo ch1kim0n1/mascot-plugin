@@ -1,0 +1,11 @@
+{
+  "metadata": {
+    "frameWidth": 5,
+    "frameHeight": 1,
+    "animations": {
+      "idle": { "frames": [0, 1], "loop": true },
+      "react": { "frames": [2, 3, 2], "loop": false, "next": "idle" }
+    }
+  },
+  "frames": ["(^_^)", "(-_-)", "(^o^)", "(*o*)"]
+}

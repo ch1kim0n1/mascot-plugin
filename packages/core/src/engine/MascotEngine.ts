@@ -1,129 +1,205 @@
 import { AnimationController } from '../animation/AnimationController';
 import { FrameTimer } from '../animation/FrameTimer';
 import { StateMachine } from './StateMachine';
-import { OverlayRoot } from '../overlay/OverlayRoot';
 import { PositionManager } from '../overlay/PositionManager';
-import { CanvasRenderer } from '../renderer/CanvasRenderer';
-import { SpriteLoader } from '../renderer/SpriteLoader';
-import { MascotEntity } from '../mascot/MascotEntity';
-import type { MascotConfig, SpriteMetadata } from '../types';
+import { EventBus } from '../events/EventBus';
+import { PluginRegistry, type MascotContext, type MascotPlugin } from '../plugin/Plugin';
+import type {
+  LoadedAsset,
+  MascotState,
+  Position,
+  Renderer,
+  Runtime,
+  SpriteMetadata
+} from '../types';
 
-const DEFAULT_CONFIG: Required<Omit<MascotConfig, 'spritesheet' | 'metadata'>> = {
+export interface MascotEngineOptions {
+  renderer: Renderer;
+  runtime: Runtime;
+  events: EventBus;
+  asset: LoadedAsset;
+  size?: number;
+  fps?: number;
+  position?: Position;
+  offsetX?: number;
+  offsetY?: number;
+  relative?: boolean;
+}
+
+const DEFAULTS = {
   size: 32,
   fps: 12,
-  position: 'bottom-right',
+  position: 'bottom-right' as Position,
   offsetX: 0,
   offsetY: 0,
-  zIndex: 999999
+  relative: false
 };
 
+/**
+ * Platform-agnostic mascot orchestrator. Knows nothing about the DOM, the
+ * terminal, or any specific platform — it drives a {@link Renderer} and a
+ * {@link Runtime} through an {@link EventBus}, advancing animation state.
+ *
+ * Use {@link createBrowserMascot} (or another preset) to wire concrete
+ * platform implementations.
+ */
 export class MascotEngine {
-  private readonly config: Required<MascotConfig>;
-  private readonly animationController = new AnimationController();
+  private readonly renderer: Renderer;
+  private readonly runtime: Runtime;
+  private readonly events: EventBus;
+  private readonly asset: LoadedAsset;
+  private readonly metadata: SpriteMetadata;
+
+  private readonly animation = new AnimationController();
   private readonly stateMachine = new StateMachine();
   private readonly positionManager = new PositionManager();
-  private readonly spriteLoader = new SpriteLoader();
   private readonly frameTimer: FrameTimer;
-  private overlayRoot: OverlayRoot | null = null;
-  private renderer: CanvasRenderer | null = null;
-  private metadata: SpriteMetadata | null = null;
-  private image: HTMLImageElement | null = null;
-  private mascot: MascotEntity | null = null;
-  private rafId = 0;
+  private readonly plugins: PluginRegistry;
 
-  constructor(config: MascotConfig) {
-    this.config = {
-      ...DEFAULT_CONFIG,
-      ...config
+  private readonly size: number;
+  private readonly position: Position;
+  private readonly offsetX: number;
+  private readonly offsetY: number;
+  private readonly relative: boolean;
+
+  private x = 0;
+  private y = 0;
+  private started = false;
+  private unsubscribers: Array<() => void> = [];
+
+  constructor(options: MascotEngineOptions) {
+    this.renderer = options.renderer;
+    this.runtime = options.runtime;
+    this.events = options.events;
+    this.asset = options.asset;
+    this.metadata = options.asset.metadata;
+
+    this.size = options.size ?? DEFAULTS.size;
+    this.position = options.position ?? DEFAULTS.position;
+    this.offsetX = options.offsetX ?? DEFAULTS.offsetX;
+    this.offsetY = options.offsetY ?? DEFAULTS.offsetY;
+    this.relative = options.relative ?? DEFAULTS.relative;
+    this.frameTimer = new FrameTimer(options.fps ?? DEFAULTS.fps);
+
+    const context: MascotContext = {
+      events: this.events,
+      setState: (state) => this.setState(state),
+      getState: () => this.stateMachine.currentState
     };
-    this.frameTimer = new FrameTimer(this.config.fps);
+    this.plugins = new PluginRegistry(context);
   }
 
   async start(): Promise<void> {
-    if (this.overlayRoot) {
+    if (this.started) {
       return;
     }
+    this.started = true;
 
-    const [metadata, image] = await Promise.all([
-      this.spriteLoader.loadMetadata(this.config.metadata),
-      this.spriteLoader.loadImage(this.config.spritesheet)
-    ]);
+    await this.renderer.init(this.asset);
+    await this.runtime.mount();
 
-    this.metadata = metadata;
-    this.image = image;
+    this.wireEvents();
+    this.unsubscribers.push(this.runtime.onTick(this.tick));
+    this.unsubscribers.push(this.runtime.onResize(() => this.updatePosition()));
 
-    this.overlayRoot = new OverlayRoot(this.config.zIndex);
-    this.overlayRoot.setCanvasSize(this.config.size);
-    this.renderer = new CanvasRenderer(this.overlayRoot.canvas);
-
-    this.mascot = new MascotEntity(0, 0, this.config.size);
     this.updatePosition();
-
-    this.overlayRoot.canvas.addEventListener('click', this.handleClick);
-    window.addEventListener('resize', this.updatePosition);
-
-    this.rafId = window.requestAnimationFrame(this.animate);
   }
 
   stop(): void {
-    if (!this.overlayRoot) {
+    if (!this.started) {
       return;
     }
+    this.started = false;
 
-    window.cancelAnimationFrame(this.rafId);
-    this.overlayRoot.canvas.removeEventListener('click', this.handleClick);
-    window.removeEventListener('resize', this.updatePosition);
-    this.overlayRoot.destroy();
-    this.overlayRoot = null;
-    this.renderer = null;
-    this.metadata = null;
-    this.image = null;
-    this.mascot = null;
+    for (const unsub of this.unsubscribers) {
+      unsub();
+    }
+    this.unsubscribers = [];
+    this.plugins.destroyAll();
+    this.runtime.destroy();
+    this.renderer.destroy();
+    this.events.clear();
   }
 
-  private readonly handleClick = (): void => {
-    this.stateMachine.setReact();
-    this.animationController.triggerReact();
-  };
+  /** Register a behavior plugin. Plugins receive the shared event bus + state API. */
+  use(plugin: MascotPlugin): this {
+    this.plugins.register(plugin);
+    return this;
+  }
 
-  private readonly updatePosition = (): void => {
-    if (!this.overlayRoot || !this.mascot) {
-      return;
-    }
+  /** Fire an external trigger (IPC, websocket, manual). If a same-named animation exists, it plays. */
+  emit(name: string, data?: unknown): void {
+    this.events.emit('external', { name, data });
+  }
 
-    const { x, y } = this.positionManager.getCoordinates(
-      this.config.position,
-      window.innerWidth,
-      window.innerHeight,
-      this.config.size,
-      this.config.offsetX,
-      this.config.offsetY
+  get state(): MascotState {
+    return this.stateMachine.currentState;
+  }
+
+  // ── internals ────────────────────────────────────────────────────────────
+
+  private setState(state: MascotState): void {
+    this.stateMachine.transition(state);
+    this.animation.setState(state);
+  }
+
+  private wireEvents(): void {
+    this.unsubscribers.push(
+      this.events.subscribe('click', () => this.setState('react')),
+      this.events.subscribe('hover', () => {
+        if (this.metadata.animations.hover) {
+          this.setState('hover');
+        }
+      }),
+      this.events.subscribe('unhover', () => {
+        if (this.stateMachine.currentState === 'hover') {
+          this.setState('idle');
+        }
+      }),
+      this.events.subscribe('external', ({ name }) => {
+        if (this.metadata.animations[name]) {
+          this.setState(name);
+        }
+      })
     );
+  }
 
-    this.mascot.setPosition(x, y);
-    this.overlayRoot.setCanvasPosition(x, y);
-  };
+  private updatePosition(): void {
+    const { width, height } = this.runtime.getViewport();
+    const coords = this.positionManager.getCoordinates(
+      this.position,
+      width,
+      height,
+      this.size,
+      this.offsetX,
+      this.offsetY,
+      this.relative
+    );
+    this.x = coords.x;
+    this.y = coords.y;
+  }
 
-  private readonly animate = (timestamp: number): void => {
-    if (!this.overlayRoot || !this.renderer || !this.metadata || !this.image) {
+  private readonly tick = (timestamp: number): void => {
+    if (!this.frameTimer.shouldAdvance(timestamp)) {
       return;
     }
 
-    if (this.frameTimer.shouldAdvance(timestamp)) {
-      const frame = this.animationController.nextFrame(this.metadata);
-      if (this.animationController.currentState === 'idle') {
-        this.stateMachine.setIdle();
-      }
+    const result = this.animation.next(this.metadata);
 
-      this.renderer.render(
-        this.image,
-        frame,
-        this.metadata.frameWidth,
-        this.metadata.frameHeight,
-        this.config.size
-      );
+    if (result.finished) {
+      const current = this.stateMachine.currentState;
+      if (current !== 'idle') {
+        const nextState = this.metadata.animations[current]?.next ?? 'idle';
+        this.setState(nextState);
+      }
     }
 
-    this.rafId = window.requestAnimationFrame(this.animate);
+    this.renderer.draw({
+      frameIndex: result.frame,
+      state: this.stateMachine.currentState,
+      x: this.x,
+      y: this.y,
+      size: this.size
+    });
   };
 }

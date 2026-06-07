@@ -1,11 +1,14 @@
 import { useEffect } from 'react';
-import { MascotEngine, type MascotConfig } from '../../core/src';
+import { createBrowserMascot, type MascotConfig, type MascotEngine } from '../../core/src';
 
 export function Mascot(props: MascotConfig): null {
   const { spritesheet, metadata, size, fps, position, offsetX, offsetY, zIndex } = props;
 
   useEffect(() => {
-    const engine = new MascotEngine({
+    let engine: MascotEngine | null = null;
+    let cancelled = false;
+
+    void createBrowserMascot({
       spritesheet,
       metadata,
       size,
@@ -14,11 +17,18 @@ export function Mascot(props: MascotConfig): null {
       offsetX,
       offsetY,
       zIndex
+    }).then((created) => {
+      if (cancelled) {
+        created.stop();
+        return;
+      }
+      engine = created;
+      void engine.start();
     });
-    void engine.start();
 
     return () => {
-      engine.stop();
+      cancelled = true;
+      engine?.stop();
     };
   }, [spritesheet, metadata, size, fps, position, offsetX, offsetY, zIndex]);
 

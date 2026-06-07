@@ -1,20 +1,55 @@
 # Tiny Mascot
 
-A tiny embeddable mascot engine for websites using sprite sheets and canvas rendering.
+A tiny mascot engine that started as a website overlay and now runs across
+platforms: **one engine, many renderers**. The core knows nothing about the DOM —
+it drives a swappable `Renderer` + `Runtime` through an `EventBus`.
 
 ## Features
 
-- Single full-page overlay root
-- Shadow DOM isolation
-- Single canvas renderer with pixel-perfect drawing (`imageSmoothingEnabled = false`)
-- Idle animation loop + click reaction animation
-- Position presets with offsets
-- React wrapper and Web Component wrapper
+- Platform-agnostic core: `Renderer` + `Runtime` + `EventBus` abstractions
+- Browser canvas renderer with Shadow DOM isolation + pixel-perfect drawing
+- Terminal renderer (ANSI/ASCII) + Node runtime for CLI mascots
+- Desktop runtimes (Electron, Tauri) with always-on-top overlay config + IPC triggers
+- Framework adapters: React, Vue, Svelte, Solid, Preact, and a Web Component
+- Event-driven state machine: `idle` / `react` / `hover` / `sleep` / `busy` / custom
+- Plugin system + built-in behavior plugins (idle-sleep, hover-react, key-trigger)
+- Streaming integration: WebSocket/OBS trigger bridge
+- Universal asset pipeline: spritesheet + ASCII packs, runtime animation registry
+- Position presets (`top-left`, `top-right`, `bottom-left`, `bottom-right`, `center`) with inward + relative offsets
+
+## Package map
+
+| Import | What |
+|---|---|
+| `mascot-plugin` | Core engine, `createBrowserMascot`, `Renderer`/`Runtime`/`EventBus` |
+| `mascot-plugin/react` | React `<Mascot/>` |
+| `mascot-plugin/vue` | Vue `Mascot` component |
+| `mascot-plugin/svelte` | Svelte `use:mascot` action |
+| `mascot-plugin/solid` | Solid `Mascot` component |
+| `mascot-plugin/preact` | Preact `<Mascot/>` |
+| `mascot-plugin/web-component` | `<tiny-mascot>` custom element |
+| `mascot-plugin/terminal` | `TerminalRenderer` / `AnsiRenderer` |
+| `mascot-plugin/node` | `NodeRuntime`, `loadAsciiAsset` |
+| `mascot-plugin/cli` | `createCliMascot` + terminal/node re-exports |
+| `mascot-plugin/electron` | `ElectronRuntime` + overlay window config |
+| `mascot-plugin/tauri` | `TauriRuntime` + overlay config |
+| `mascot-plugin/plugins` | `idleSleep`, `hoverReact`, `keyTrigger` |
+| `mascot-plugin/obs` | `websocketTriggers` streaming bridge |
+| `mascot-plugin/asset-pipeline` | `AssetLoader`, `AnimationRegistry`, `PackManager` |
+
+Framework/desktop deps (`react`, `vue`, `solid-js`, `preact`, `svelte`, `electron`,
+`@tauri-apps/api`) are **optional peers** — install only what you use.
+
+## Installation
+
+```sh
+npm install mascot-plugin
+```
 
 ## React usage
 
 ```tsx
-import { Mascot } from './dist/react/src/index.js';
+import { Mascot } from 'mascot-plugin/react';
 
 <Mascot
   spritesheet="/mascot.png"
@@ -23,13 +58,17 @@ import { Mascot } from './dist/react/src/index.js';
   fps={12}
   position="bottom-right"
   offsetX={20}
-  offsetY={30}
-/>;
+  offsetY={20}
+/>
 ```
 
 ## Web Component usage
 
 ```html
+<script type="module">
+  import 'mascot-plugin/web-component';
+</script>
+
 <tiny-mascot
   spritesheet="/mascot.png"
   metadata="/metadata.json"
@@ -37,12 +76,150 @@ import { Mascot } from './dist/react/src/index.js';
   fps="12"
   position="bottom-right"
   offset-x="20"
-  offset-y="30">
+  offset-y="20">
 </tiny-mascot>
+```
+
+## Vanilla JS usage
+
+```js
+import { MascotEngine } from 'mascot-plugin';
+
+const engine = new MascotEngine({
+  spritesheet: '/mascot.png',
+  metadata: '/metadata.json',
+  size: 32,
+  fps: 12,
+  position: 'bottom-right',
+  offsetX: 20,
+  offsetY: 20,
+});
+
+await engine.start();
+
+// later:
+engine.stop();
+```
+
+## Sprite metadata format
+
+Place a `metadata.json` alongside your spritesheet:
+
+```json
+{
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "animations": {
+    "idle": {
+      "frames": [0, 1, 2, 3],
+      "loop": true
+    },
+    "react": {
+      "frames": [4, 5, 6],
+      "loop": false
+    }
+  }
+}
+```
+
+Frames are zero-indexed left-to-right across the spritesheet rows. `react` plays once on click then returns to `idle`.
+
+## Position presets
+
+| Value | Anchor | `offsetX` direction | `offsetY` direction |
+|---|---|---|---|
+| `top-left` | top-left corner | right | down |
+| `top-right` | top-right corner | left (inward) | down |
+| `bottom-left` | bottom-left corner | right | up (inward) |
+| `bottom-right` | bottom-right corner | left (inward) | up (inward) |
+| `center` | viewport center | right | down |
+
+Positive offset values always move the mascot toward the interior of the viewport.
+
+## Other framework adapters
+
+```ts
+// Vue
+import { Mascot } from 'mascot-plugin/vue';
+
+// Solid
+import { Mascot } from 'mascot-plugin/solid';
+
+// Preact
+import { Mascot } from 'mascot-plugin/preact';
+
+// Svelte — action directive
+import { mascot } from 'mascot-plugin/svelte';
+// <div use:mascot={{ spritesheet, metadata, position: 'bottom-right' }} />
+```
+
+All adapters take the same `MascotConfig` props as React and manage the engine
+lifecycle (create on mount, stop on unmount, recreate when inputs change).
+
+## CLI / terminal usage
+
+```ts
+import { createCliMascot } from 'mascot-plugin/cli';
+
+// ascii pack: { metadata, frames: string[] }
+const mascot = await createCliMascot('./mascot.ascii.json', {
+  fps: 6,
+  position: 'bottom-right',
+});
+await mascot.start();
+```
+
+`NodeRuntime` drives the loop and forwards key presses; `TerminalRenderer`
+positions ASCII frames with ANSI cursor codes. See `packages/cli/src/demo.ts`.
+
+## Plugins
+
+```ts
+import { createBrowserMascot } from 'mascot-plugin';
+import { idleSleep, hoverReact, keyTrigger } from 'mascot-plugin/plugins';
+
+const mascot = await createBrowserMascot(config);
+mascot
+  .use(idleSleep({ delayMs: 15000 }))           // → 'sleep' after inactivity
+  .use(hoverReact())                            // hover → 'hover' state
+  .use(keyTrigger({ bindings: { ' ': 'react' } }));
+await mascot.start();
+```
+
+Write your own by implementing `MascotPlugin` (`name` / `initialize(ctx)` /
+`destroy()`); `ctx` exposes the `EventBus` and `setState`.
+
+## Streaming / OBS triggers
+
+```ts
+import { websocketTriggers } from 'mascot-plugin/obs';
+
+// backend sends JSON {"name":"wave"} → mascot plays its 'wave' animation
+mascot.use(websocketTriggers({ url: 'ws://localhost:4455' }));
+```
+
+Or fire triggers manually from anywhere: `mascot.emit('wave')`.
+
+## Custom platforms
+
+The engine is platform-agnostic — provide your own `Renderer` + `Runtime`:
+
+```ts
+import { MascotEngine, EventBus } from 'mascot-plugin';
+
+const engine = new MascotEngine({
+  renderer: myRenderer,   // implements Renderer (init/draw/clear/destroy)
+  runtime: myRuntime,     // implements Runtime (mount/getViewport/onTick/onResize/destroy)
+  events: new EventBus(),
+  asset,                  // a LoadedAsset
+  size: 32,
+  fps: 12,
+});
+await engine.start();
 ```
 
 ## Scripts
 
-- `npm run lint`
 - `npm run build`
 - `npm test`
+- `npm run lint`

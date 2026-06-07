@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "description": "a plugin to add my mascot to any website/software with GUI",
   "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup packages/core/src/index.ts packages/react/src/index.ts packages/web-component/src/index.ts --dts --format esm,cjs --clean --out-dir dist",
+    "build": "tsup --entry.index packages/core/src/index.ts --entry.react packages/react/src/index.ts --entry.webcomponent packages/web-component/src/index.ts --entry.terminal packages/renderers/terminal/src/index.ts --entry.node packages/runtimes/node/src/index.ts --entry.cli packages/cli/src/index.ts --entry.electron packages/runtimes/electron/src/index.ts --entry.tauri packages/runtimes/tauri/src/index.ts --entry.vue packages/vue/src/index.ts --entry.svelte packages/svelte/src/index.ts --entry.solid packages/solid/src/index.ts --entry.preact packages/preact/src/index.ts --entry.plugins packages/plugins/src/index.ts --entry.obs packages/integrations/obs/src/index.ts --entry.asset-pipeline packages/asset-pipeline/src/index.ts --dts --format esm,cjs --clean --out-dir dist",
     "lint": "eslint .",
     "test": "vitest run"
   },
@@ -23,6 +25,23 @@
   "dependencies": {
     "react": "^19.2.7"
   },
+  "peerDependencies": {
+    "vue": "^3.0.0",
+    "solid-js": "^1.0.0",
+    "preact": "^10.0.0",
+    "svelte": "^4.0.0",
+    "electron": "*",
+    "@tauri-apps/api": "*"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true },
+    "vue": { "optional": true },
+    "solid-js": { "optional": true },
+    "preact": { "optional": true },
+    "svelte": { "optional": true },
+    "electron": { "optional": true },
+    "@tauri-apps/api": { "optional": true }
+  },
   "devDependencies": {
     "@types/node": "^25.9.2",
     "@types/react": "^19.2.17",
@@ -31,11 +50,89 @@
     "@typescript-eslint/parser": "^8.60.1",
     "eslint": "^10.4.1",
     "jsdom": "^29.1.1",
+    "preact": "^10.0.0",
+    "solid-js": "^1.0.0",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "vue": "^3.0.0"
   },
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts"
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js",
+      "require": "./dist/react.cjs"
+    },
+    "./web-component": {
+      "types": "./dist/webcomponent.d.ts",
+      "import": "./dist/webcomponent.js",
+      "require": "./dist/webcomponent.cjs"
+    },
+    "./terminal": {
+      "types": "./dist/terminal.d.ts",
+      "import": "./dist/terminal.js",
+      "require": "./dist/terminal.cjs"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js",
+      "require": "./dist/node.cjs"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js",
+      "require": "./dist/cli.cjs"
+    },
+    "./electron": {
+      "types": "./dist/electron.d.ts",
+      "import": "./dist/electron.js",
+      "require": "./dist/electron.cjs"
+    },
+    "./tauri": {
+      "types": "./dist/tauri.d.ts",
+      "import": "./dist/tauri.js",
+      "require": "./dist/tauri.cjs"
+    },
+    "./vue": {
+      "types": "./dist/vue.d.ts",
+      "import": "./dist/vue.js",
+      "require": "./dist/vue.cjs"
+    },
+    "./svelte": {
+      "types": "./dist/svelte.d.ts",
+      "import": "./dist/svelte.js",
+      "require": "./dist/svelte.cjs"
+    },
+    "./solid": {
+      "types": "./dist/solid.d.ts",
+      "import": "./dist/solid.js",
+      "require": "./dist/solid.cjs"
+    },
+    "./preact": {
+      "types": "./dist/preact.d.ts",
+      "import": "./dist/preact.js",
+      "require": "./dist/preact.cjs"
+    },
+    "./plugins": {
+      "types": "./dist/plugins.d.ts",
+      "import": "./dist/plugins.js",
+      "require": "./dist/plugins.cjs"
+    },
+    "./obs": {
+      "types": "./dist/obs.d.ts",
+      "import": "./dist/obs.js",
+      "require": "./dist/obs.cjs"
+    },
+    "./asset-pipeline": {
+      "types": "./dist/asset-pipeline.d.ts",
+      "import": "./dist/asset-pipeline.js",
+      "require": "./dist/asset-pipeline.cjs"
+    }
+  }
 }

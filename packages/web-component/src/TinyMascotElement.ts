@@ -1,4 +1,4 @@
-import { MascotEngine, type MascotConfig, type Position } from '../../core/src';
+import { createBrowserMascot, type MascotConfig, type MascotEngine, type Position } from '../../core/src';
 
 export class TinyMascotElement extends HTMLElement {
   static get observedAttributes(): string[] {
@@ -6,6 +6,7 @@ export class TinyMascotElement extends HTMLElement {
   }
 
   private engine: MascotEngine | null = null;
+  private mountToken: object | null = null;
 
   connectedCallback(): void {
     this.mountEngine();
@@ -43,11 +44,22 @@ export class TinyMascotElement extends HTMLElement {
       zIndex: this.toNumber(this.getAttribute('z-index'))
     };
 
-    this.engine = new MascotEngine(config);
-    void this.engine.start();
+    this.mountToken = {};
+    const token = this.mountToken;
+
+    void createBrowserMascot(config).then((engine) => {
+      if (this.mountToken !== token) {
+        // unmounted (or remounted) before the asset finished loading
+        engine.stop();
+        return;
+      }
+      this.engine = engine;
+      void engine.start();
+    });
   }
 
   private unmountEngine(): void {
+    this.mountToken = null;
     this.engine?.stop();
     this.engine = null;
   }
