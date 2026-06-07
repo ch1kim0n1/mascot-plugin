@@ -265,8 +265,8 @@
     <h2>metadata.json Format</h2>
     <div class="card">
       <pre><code>{
-  <span class="tok-key">"frameWidth"</span>: <span class="tok-num">512</span>,       <span class="tok-comment">// width of a single frame in pixels</span>
-  <span class="tok-key">"frameHeight"</span>: <span class="tok-num">512</span>,      <span class="tok-comment">// height of a single frame in pixels</span>
+  <span class="tok-key">"frameWidth"</span>: <span class="tok-num">336</span>,       <span class="tok-comment">// width of a single frame in pixels</span>
+  <span class="tok-key">"frameHeight"</span>: <span class="tok-num">336</span>,      <span class="tok-comment">// height of a single frame in pixels</span>
   <span class="tok-key">"animations"</span>: {
     <span class="tok-key">"idle"</span>: {
       <span class="tok-key">"frames"</span>: [<span class="tok-num">0</span>, <span class="tok-num">1</span>, <span class="tok-num">2</span>, <span class="tok-num">1</span>],  <span class="tok-comment">// zero-based frame indices, left → right, top → bottom</span>
@@ -309,7 +309,7 @@
           <div id="diagram-single" style="overflow-x:auto;"></div>
         </div>
         <div>
-          <p style="font-size:0.78rem; color:#6e7681; margin-bottom:8px; font-weight:600; text-transform:uppercase; letter-spacing:.06em;">This sheet — 3 × 2 grid (512px frames)</p>
+          <p style="font-size:0.78rem; color:#6e7681; margin-bottom:8px; font-weight:600; text-transform:uppercase; letter-spacing:.06em;">This sheet — 3 × 2 grid (336px frames)</p>
           <div id="diagram-tworow" style="overflow-x:auto;"></div>
         </div>
       </div>
@@ -439,14 +439,16 @@ await engine.start();
 <script>
   const { createBrowserMascot } = TinyMascot;
 
-  // Your real mascot sheet: 1536×1024 = a 3 × 2 grid of 512 × 512 frames.
+  // Your cat, normalized to a uniform grid: 1008×672 = 3 × 2 cells of 336 × 336,
+  // each cat cropped to its bounding box and centered (generated from
+  // public/mascot-sheet.png, whose frames sat at irregular offsets).
   // Frames (0-based, left→right, top→bottom): 5 used, last cell empty.
-  const SHEET_URL = '../public/mascot-sheet.png';
+  const SHEET_URL = '../public/mascot-frames.png';
   const COLS = 3, ROWS = 2;
 
   const metadata = {
-    frameWidth: 512,
-    frameHeight: 512,
+    frameWidth: 336,
+    frameHeight: 336,
     animations: {
       idle:  { frames: [0, 1, 2, 1], loop: true },
       react: { frames: [3, 4, 4, 3], loop: false, next: 'idle' }
