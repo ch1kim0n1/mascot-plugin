@@ -137,10 +137,12 @@ export class BrowserRuntime implements Runtime {
     if (!this.dragging) {
       return;
     }
-    this.eventBus.emit('drag', {
-      x: e.clientX - this.dragOffsetX,
-      y: e.clientY - this.dragOffsetY
-    });
+    // Translate the pointer into the overlay's local frame. The overlay root is
+    // `position: fixed` at the viewport origin (no container) or `position:
+    // absolute` at the container's origin, so canvas.style.left/top — and thus
+    // the `drag` event payload — must be overlay-local, not screen-relative.
+    const local = this.screenToLocal(e.clientX - this.dragOffsetX, e.clientY - this.dragOffsetY);
+    this.eventBus.emit('drag', local);
   };
 
   private readonly handlePointerUp = (): void => {
@@ -150,9 +152,12 @@ export class BrowserRuntime implements Runtime {
 
   private readonly handleDragKey = (e: KeyboardEvent): void => {
     const step = e.shiftKey ? 20 : 10;
+    // Base the keyboard step on the canvas's current overlay-local position,
+    // not its screen rect, so it stays correct when scoped to a container.
     const rect = this.canvas.getBoundingClientRect();
-    let x = rect.left;
-    let y = rect.top;
+    const local = this.screenToLocal(rect.left, rect.top);
+    let x = local.x;
+    let y = local.y;
     let moved = false;
     switch (e.key) {
       case 'ArrowLeft': x -= step; moved = true; break;
@@ -165,6 +170,21 @@ export class BrowserRuntime implements Runtime {
       this.eventBus.emit('drag', { x, y });
     }
   };
+
+  /**
+   * Convert screen (clientX/clientY) coordinates to the overlay root's local
+   * frame. With a `container`, the overlay is `position: absolute` at the
+   * container's origin, so we subtract the container's screen rect. Without a
+   * container the overlay is `position: fixed` at the viewport origin, so
+   * screen and local frames coincide.
+   */
+  private screenToLocal(screenX: number, screenY: number): { x: number; y: number } {
+    if (this.container) {
+      const c = this.container.getBoundingClientRect();
+      return { x: screenX - c.left, y: screenY - c.top };
+    }
+    return { x: screenX, y: screenY };
+  }
 
   private readonly handleResize = (): void => {
     const viewport = this.getViewport();
