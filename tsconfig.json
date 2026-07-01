@@ -4,7 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "lib": ["ES2020", "DOM"],
-    "types": ["node"],
+    "types": ["node", "@webgpu/types"],
     "declaration": true,
     "strict": true,
     "esModuleInterop": true,

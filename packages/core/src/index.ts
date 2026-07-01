@@ -27,3 +27,6 @@ export * from './runtime/BrowserRuntime';
 // Entity + shared types
 export * from './mascot/MascotEntity';
 export * from './types';
+
+// Recording
+export * from './recording/MascotRecorder';

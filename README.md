@@ -72,6 +72,7 @@ Everything talks over a typed **EventBus**.
 | `mascot-plugin/manager` | `MascotManager` — spawn/control multiple mascots |
 | `mascot-plugin/unity` | `UnityRenderer` + `UnityRuntime` (JSON-over-stdio bridge) |
 | `mascot-plugin/react-native` | `ReactNativeRuntime` + `SkiaRenderer` |
+| `mascot-plugin/webgpu` | `WebGPURenderer` (GPU-accelerated sprite rendering) |
 
 Framework/desktop deps (`react`, `vue`, `solid-js`, `preact`, `svelte`, `electron`,
 `@tauri-apps/api`, `react-native`, `@shopify/react-native-skia`) are **optional peers** — install only what you use.
@@ -302,6 +303,44 @@ const engine = new MascotEngine({
   runtime: new ReactNativeRuntime(events, dimensionsViewportSource(), intervalScheduler()),
   events, asset: { kind: 'spritesheet', metadata, image }, size: 64, fps: 12
 });
+await engine.start();
+```
+
+## Recording
+
+`MascotRecorder` (exported from the core package) captures the mascot canvas
+to a video Blob via MediaRecorder. Check `MascotRecorder.isSupported()` first;
+the recorder auto-selects the best supported MIME type (vp9 → vp8 → webm → mp4).
+
+```ts
+import { MascotRecorder, createBrowserMascot } from 'mascot-plugin';
+
+const mascot = await createBrowserMascot(config);
+await mascot.start();
+// The canvas is on the overlay; grab it via the engine or your own canvas ref.
+const canvas = document.querySelector('canvas')!;
+const rec = new MascotRecorder(canvas, { fps: 30 });
+rec.start();
+// …interact with the mascot…
+const blob = await rec.stop();
+const url = URL.createObjectURL(blob);
+// <a download="mascot.webm" href={url}>Download</a>
+```
+
+## WebGPU renderer
+
+`mascot-plugin/webgpu` provides a `WebGPURenderer` that draws sprite frames
+onto a WebGPU canvas with a minimal textured-quad pipeline (UV offset per
+frame). Use it instead of `CanvasRenderer` for GPU-accelerated rendering on
+supported browsers; check `WebGPURenderer.isSupported()` first.
+
+```ts
+import { MascotEngine, EventBus } from 'mascot-plugin';
+import { WebGPURenderer } from 'mascot-plugin/webgpu';
+
+const canvas = document.querySelector('canvas')!;
+const renderer = new WebGPURenderer(canvas);
+const engine = new MascotEngine({ renderer, runtime, events, asset, size: 64, fps: 12 });
 await engine.start();
 ```
 

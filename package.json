@@ -6,7 +6,7 @@
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup --entry.index packages/core/src/index.ts --entry.react packages/react/src/index.ts --entry.webcomponent packages/web-component/src/index.ts --entry.auto packages/auto-init/src/index.ts --entry.terminal packages/renderers/terminal/src/index.ts --entry.node packages/runtimes/node/src/index.ts --entry.cli packages/cli/src/index.ts --entry.electron packages/runtimes/electron/src/index.ts --entry.tauri packages/runtimes/tauri/src/index.ts --entry.vue packages/vue/src/index.ts --entry.svelte packages/svelte/src/index.ts --entry.solid packages/solid/src/index.ts --entry.preact packages/preact/src/index.ts --entry.plugins packages/plugins/src/index.ts --entry.obs packages/integrations/obs/src/index.ts --entry.asset-pipeline packages/asset-pipeline/src/index.ts --entry.packer packages/packer/src/index.ts --entry.packbin packages/packer/src/bin.ts --entry.manager packages/manager/src/index.ts --entry.unity packages/integrations/unity/src/index.ts --entry.reactnative packages/runtimes/react-native/src/index.ts --external pngjs --external omggif --external react-native --external @shopify/react-native-skia --dts --format esm,cjs --clean --out-dir dist",
+    "build": "tsup --entry.index packages/core/src/index.ts --entry.react packages/react/src/index.ts --entry.webcomponent packages/web-component/src/index.ts --entry.auto packages/auto-init/src/index.ts --entry.terminal packages/renderers/terminal/src/index.ts --entry.node packages/runtimes/node/src/index.ts --entry.cli packages/cli/src/index.ts --entry.electron packages/runtimes/electron/src/index.ts --entry.tauri packages/runtimes/tauri/src/index.ts --entry.vue packages/vue/src/index.ts --entry.svelte packages/svelte/src/index.ts --entry.solid packages/solid/src/index.ts --entry.preact packages/preact/src/index.ts --entry.plugins packages/plugins/src/index.ts --entry.obs packages/integrations/obs/src/index.ts --entry.asset-pipeline packages/asset-pipeline/src/index.ts --entry.packer packages/packer/src/index.ts --entry.packbin packages/packer/src/bin.ts --entry.manager packages/manager/src/index.ts --entry.unity packages/integrations/unity/src/index.ts --entry.reactnative packages/runtimes/react-native/src/index.ts --entry.webgpu packages/renderers/webgpu/src/index.ts --external pngjs --external omggif --external react-native --external @shopify/react-native-skia --dts --format esm,cjs --clean --out-dir dist",
     "lint": "eslint .",
     "test": "vitest run",
     "example": "esbuild packages/auto-init/src/index.ts --bundle --format=iife --global-name=TinyMascot --outfile=example/tiny-mascot.global.js"
@@ -103,6 +103,7 @@
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.60.1",
     "@typescript-eslint/parser": "^8.60.1",
+    "@webgpu/types": "^0.1.71",
     "eslint": "^10.4.1",
     "jsdom": "^29.1.1",
     "preact": "^10.0.0",
@@ -214,6 +215,11 @@
       "types": "./dist/reactnative.d.ts",
       "import": "./dist/reactnative.js",
       "require": "./dist/reactnative.cjs"
+    },
+    "./webgpu": {
+      "types": "./dist/webgpu.d.ts",
+      "import": "./dist/webgpu.js",
+      "require": "./dist/webgpu.cjs"
     }
   },
   "optionalDependencies": {
