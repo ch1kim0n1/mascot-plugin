@@ -72,6 +72,9 @@ export class MascotEngine {
   private reducedMotion = false;
   private paused = false;
   private mql?: MediaQueryList;
+  // When true, updatePosition keeps the manually-set coordinates instead of
+  // recomputing from the position preset (set by drag-to-move).
+  private manualPosition = false;
 
   constructor(options: MascotEngineOptions) {
     this.renderer = options.renderer;
@@ -143,6 +146,30 @@ export class MascotEngine {
     this.events.emit('external', { name, data });
   }
 
+  /**
+   * Move the mascot to absolute viewport coordinates `(x, y)` and stop
+   * auto-positioning from the preset until {@link releasePosition} is called.
+   * Used by drag-to-move. Redraws immediately for responsive feedback.
+   */
+  teleport(x: number, y: number): void {
+    this.manualPosition = true;
+    const { width, height } = this.runtime.getViewport();
+    this.x = Math.max(0, Math.min(x, width - this.size));
+    this.y = Math.max(0, Math.min(y, height - this.size));
+    if (this.started) {
+      this.drawStatic();
+    }
+  }
+
+  /** Resume auto-positioning from the configured preset (e.g. after a drag). */
+  releasePosition(): void {
+    this.manualPosition = false;
+    if (this.started) {
+      this.updatePosition();
+      this.drawStatic();
+    }
+  }
+
   get state(): MascotState {
     return this.stateMachine.currentState;
   }
@@ -171,11 +198,26 @@ export class MascotEngine {
         if (this.metadata.animations[name]) {
           this.setState(name);
         }
+      }),
+      // Drag-to-move: the runtime emits absolute viewport coordinates.
+      this.events.subscribe('drag', ({ x, y }) => {
+        this.teleport(x, y);
       })
     );
   }
 
   private updatePosition(): void {
+    if (this.manualPosition) {
+      // Clamp the manually-set position into the viewport.
+      const { width, height } = this.runtime.getViewport();
+      this.x = Math.max(0, Math.min(this.x, width - this.size));
+      this.y = Math.max(0, Math.min(this.y, height - this.size));
+      if (this.started && (this.reducedMotion || this.paused)) {
+        this.drawStatic();
+      }
+      return;
+    }
+
     const { width, height } = this.runtime.getViewport();
     const coords = this.positionManager.getCoordinates(
       this.position,

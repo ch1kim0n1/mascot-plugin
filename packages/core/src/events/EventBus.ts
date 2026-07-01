@@ -11,6 +11,8 @@ export type MascotEventType =
   | 'focus'
   | 'blur'
   | 'timer'
+  | 'drag'
+  | 'say'
   | 'external';
 
 export interface MascotEventPayloads {
@@ -22,6 +24,8 @@ export interface MascotEventPayloads {
   focus: void;
   blur: void;
   timer: { elapsed: number };
+  drag: { x: number; y: number };
+  say: { text: string; durationMs?: number };
   external: { name: string; data?: unknown };
 }
 

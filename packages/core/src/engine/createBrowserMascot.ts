@@ -32,7 +32,7 @@ export async function createBrowserMascot(config: MascotConfig): Promise<MascotE
 
   const events = new EventBus();
   const renderer = new CanvasRenderer(overlay.canvas);
-  const runtime = new BrowserRuntime(overlay.canvas, events);
+  const runtime = new BrowserRuntime(overlay.canvas, events, config.draggable ?? false);
 
   // Use a pre-loaded asset when supplied (e.g. the built-in default mascot);
   // otherwise fetch spritesheet + metadata from the configured URLs.

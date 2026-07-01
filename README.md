@@ -262,6 +262,18 @@ The bundled `cutie.json` pack animates in the terminal corner (idle loop, reacts
 └──────────────────────────────┘
 ```
 
+## Drag-to-move
+
+Set `draggable: true` (or the `draggable` attribute on `<tiny-mascot>`) to let
+users reposition the mascot by dragging. The mascot snaps to the new spot,
+clamped to the viewport, and stays there until the page is resized (which
+re-applies the position preset). Call `engine.releasePosition()` to snap back
+to the preset programmatically.
+
+```html
+<tiny-mascot draggable position="bottom-right"></tiny-mascot>
+```
+
 ## Accessibility
 
 The engine respects user preferences and host-page state automatically:

@@ -123,4 +123,6 @@ export interface MascotConfig {
   zIndex?: number;
   /** Accessible label for the mascot canvas (role="img"). Defaults to "Mascot". */
   ariaLabel?: string;
+  /** Enable pointer drag-to-move. Default false. */
+  draggable?: boolean;
 }

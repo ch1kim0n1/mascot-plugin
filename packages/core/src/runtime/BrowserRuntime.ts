@@ -11,10 +11,15 @@ export class BrowserRuntime implements Runtime {
   private tickCb: TickCallback | null = null;
   private resizeCbs = new Set<ResizeCallback>();
   private mounted = false;
+  // Drag-to-move state: offset from pointer to canvas top-left at drag start.
+  private dragging = false;
+  private dragOffsetX = 0;
+  private dragOffsetY = 0;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
-    private readonly eventBus: EventBus
+    private readonly eventBus: EventBus,
+    private readonly draggable = false
   ) {}
 
   mount(): void {
@@ -26,6 +31,10 @@ export class BrowserRuntime implements Runtime {
     this.canvas.addEventListener('click', this.handleClick);
     this.canvas.addEventListener('mouseenter', this.handleEnter);
     this.canvas.addEventListener('mouseleave', this.handleLeave);
+    if (this.draggable) {
+      this.canvas.addEventListener('pointerdown', this.handlePointerDown);
+      this.canvas.style.cursor = 'grab';
+    }
     window.addEventListener('resize', this.handleResize);
     window.addEventListener('keydown', this.handleKey);
 
@@ -59,6 +68,9 @@ export class BrowserRuntime implements Runtime {
     this.canvas.removeEventListener('click', this.handleClick);
     this.canvas.removeEventListener('mouseenter', this.handleEnter);
     this.canvas.removeEventListener('mouseleave', this.handleLeave);
+    this.canvas.removeEventListener('pointerdown', this.handlePointerDown);
+    window.removeEventListener('pointermove', this.handlePointerMove);
+    window.removeEventListener('pointerup', this.handlePointerUp);
     window.removeEventListener('resize', this.handleResize);
     window.removeEventListener('keydown', this.handleKey);
     this.tickCb = null;
@@ -87,6 +99,34 @@ export class BrowserRuntime implements Runtime {
 
   private readonly handleKey = (e: KeyboardEvent): void => {
     this.eventBus.emit('keypress', { key: e.key });
+  };
+
+  private readonly handlePointerDown = (e: PointerEvent): void => {
+    // Only start a drag on a primary-button press; let clicks still fire.
+    if (e.button !== 0) {
+      return;
+    }
+    const rect = this.canvas.getBoundingClientRect();
+    this.dragOffsetX = e.clientX - rect.left;
+    this.dragOffsetY = e.clientY - rect.top;
+    this.dragging = true;
+    window.addEventListener('pointermove', this.handlePointerMove);
+    window.addEventListener('pointerup', this.handlePointerUp, { once: true });
+  };
+
+  private readonly handlePointerMove = (e: PointerEvent): void => {
+    if (!this.dragging) {
+      return;
+    }
+    this.eventBus.emit('drag', {
+      x: e.clientX - this.dragOffsetX,
+      y: e.clientY - this.dragOffsetY
+    });
+  };
+
+  private readonly handlePointerUp = (): void => {
+    this.dragging = false;
+    window.removeEventListener('pointermove', this.handlePointerMove);
   };
 
   private readonly handleResize = (): void => {
