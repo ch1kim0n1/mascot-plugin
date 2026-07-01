@@ -9,11 +9,15 @@ afterEach(() => {
 // jsdom doesn't implement canvas 2D contexts; stub getContext so the
 // CanvasRenderer constructor succeeds and the error reaches asset loading.
 function stubCanvasContext(): void {
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
-    imageSmoothingEnabled: false,
-    clearRect: vi.fn(),
-    drawImage: vi.fn()
-  } as unknown as CanvasRenderingContext2D);
+  // @webgpu/types adds a getContext('webgpu') overload; vi.spyOn picks that
+  // overload's return type (GPUCanvasContext), so cast the return value through
+  // never to inject a 2D-context-shaped stub.
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext')
+    .mockReturnValue({
+      imageSmoothingEnabled: false,
+      clearRect: vi.fn(),
+      drawImage: vi.fn()
+    } as never);
 }
 
 describe('createBrowserMascot error-path cleanup', () => {

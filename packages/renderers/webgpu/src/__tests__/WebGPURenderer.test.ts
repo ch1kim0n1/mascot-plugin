@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { WebGPURenderer } from '../WebGPURenderer';
-import type { LoadedAsset } from '../../../core/src';
+import type { LoadedAsset } from '../../../../core/src';
 
 describe('WebGPURenderer', () => {
   it('isSupported returns false without navigator.gpu', () => {
@@ -34,7 +34,7 @@ describe('WebGPURenderer', () => {
       configure: vi.fn(),
       getCurrentTexture: () => fakeTexture
     };
-    vi.spyOn(canvas, 'getContext').mockReturnValue(fakeContext as unknown as CanvasRenderingContext2D);
+    vi.spyOn(canvas, 'getContext').mockReturnValue(fakeContext as never);
 
     // Fake GPU device/adapter/pipeline/etc.
     const fakeBindGroupLayout = {};
@@ -125,7 +125,7 @@ describe('WebGPURenderer', () => {
     vi.spyOn(canvas, 'getContext').mockReturnValue({
       configure: vi.fn(),
       getCurrentTexture: () => fakeTexture
-    } as unknown as CanvasRenderingContext2D);
+    } as never);
 
     const fakePass = { setPipeline: vi.fn(), setBindGroup: vi.fn(), draw: vi.fn(), end: vi.fn() };
     const fakeEncoder = { beginRenderPass: () => fakePass, finish: () => ({}) };
@@ -167,7 +167,7 @@ describe('WebGPURenderer', () => {
     vi.spyOn(canvas, 'getContext').mockReturnValue({
       configure: vi.fn(),
       getCurrentTexture: () => fakeTexture
-    } as unknown as CanvasRenderingContext2D);
+    } as never);
 
     const fakePass = { setPipeline: vi.fn(), setBindGroup: vi.fn(), draw: vi.fn(), end: vi.fn() };
     const fakeEncoder = { beginRenderPass: () => fakePass, finish: () => ({}) };

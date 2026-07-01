@@ -10,7 +10,7 @@ vi.mock('../../../core/src/engine/createBrowserMascot', () => ({
       start: vi.fn(async () => {}),
       stop: vi.fn(),
       emit: vi.fn(),
-      use: vi.fn(function () { return this; })
+      use: vi.fn(function (this: unknown) { return this; })
     };
     return engine;
   })
@@ -61,7 +61,7 @@ describe('MascotManager', () => {
       start: vi.fn(async () => { throw new Error('boom'); }),
       stop: vi.fn(),
       emit: vi.fn(),
-      use: vi.fn(function () { return this; })
+      use: vi.fn(function (this: unknown) { return this; })
     };
     mocked.mockResolvedValueOnce(failingEngine as never);
 
