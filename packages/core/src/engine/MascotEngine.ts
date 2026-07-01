@@ -24,6 +24,14 @@ export interface MascotEngineOptions {
   offsetX?: number;
   offsetY?: number;
   relative?: boolean;
+  /**
+   * Called once at the end of {@link MascotEngine.stop}, after the runtime and
+   * renderer are torn down but before the event bus is cleared. Use it to
+   * release any platform surface the preset created for the engine (e.g. the
+   * browser overlay). This is the supported extension point for preset
+   * cleanup — do not override `stop` on the instance.
+   */
+  onDestroy?: () => void;
 }
 
 const DEFAULTS = {
@@ -61,6 +69,7 @@ export class MascotEngine {
   private readonly offsetX: number;
   private readonly offsetY: number;
   private readonly relative: boolean;
+  private readonly onDestroy?: () => void;
 
   private x = 0;
   private y = 0;
@@ -88,6 +97,7 @@ export class MascotEngine {
     this.offsetX = options.offsetX ?? DEFAULTS.offsetX;
     this.offsetY = options.offsetY ?? DEFAULTS.offsetY;
     this.relative = options.relative ?? DEFAULTS.relative;
+    this.onDestroy = options.onDestroy;
     this.frameTimer = new FrameTimer(options.fps ?? DEFAULTS.fps);
 
     const context: MascotContext = {
@@ -132,6 +142,9 @@ export class MascotEngine {
     this.plugins.destroyAll();
     this.runtime.destroy();
     this.renderer.destroy();
+    // Release any platform surface the preset created (e.g. the browser
+    // overlay) before clearing the bus, so onDestroy handlers can still emit.
+    this.onDestroy?.();
     this.events.clear();
   }
 

@@ -49,20 +49,16 @@ export async function createBrowserMascot(config: MascotConfig): Promise<MascotE
     fps: config.fps,
     position: config.position,
     offsetX: config.offsetX,
-    offsetY: config.offsetY
+    offsetY: config.offsetY,
+    // Tear the overlay down when the engine stops — the supported lifecycle
+    // hook, instead of overriding stop() on the instance.
+    onDestroy: () => overlay.destroy()
   });
 
   // Render speech bubbles on the overlay when the engine `say`s something.
   events.subscribe('say', ({ text, durationMs }) => {
     overlay.showBubble(text, durationMs);
   });
-
-  // Tear the overlay down when the engine stops.
-  const originalStop = engine.stop.bind(engine);
-  engine.stop = () => {
-    originalStop();
-    overlay.destroy();
-  };
 
   return engine;
 }

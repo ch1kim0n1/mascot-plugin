@@ -56,23 +56,47 @@ function cropRect(sheet: Frame, x: number, y: number, w: number, h: number): Fra
   return { width: w, height: h, data };
 }
 
-/**
- * Decode a GIF into individual RGBA frames. Uses `omggif` (pure JS). Frames are
- * composited over the previous frame (GIF disposal method 0/1) as needed.
- */
-export function decodeGif(buffer: Buffer): Frame[] {
-  const { GifReader } = cjsRequire('omggif') as typeof import('omggif');
-  const reader = new GifReader(buffer);
-  const { width, height } = reader;
-  const count = reader.numFrames();
-  const frames: Frame[] = [];
+/** A decoded GIF frame: its full-canvas RGBA buffer + disposal metadata. */
+export interface GifFrameInput {
+  /** Sub-rectangle the frame occupies on the canvas (for disposal 2). */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** GIF graphic-control disposal method (0–3). */
+  disposal: number;
+  /** Full-canvas RGBA (width × height × 4); transparent outside the sub-rect. */
+  rgba: Buffer;
+}
 
-  // GIF frames are partial; composite each onto a running canvas.
+/**
+ * Composite decoded GIF frames into per-frame snapshots, honoring the GIF
+ * graphic-control disposal method:
+ *   - 0 (none) / 1 (do not dispose): leave the frame in place.
+ *   - 2 (restore to background): clear the frame's sub-rectangle to transparent
+ *     before drawing the next frame.
+ *   - 3 (restore to previous): restore the canvas to the snapshot taken before
+ *     this frame was drawn before drawing the next frame.
+ *
+ * This is a pure function separated from {@link decodeGif} so it can be tested
+ * without the `omggif` dependency.
+ */
+export function compositeGifFrames(width: number, height: number, inputs: GifFrameInput[]): Frame[] {
+  const frames: Frame[] = [];
+  // Running compositing canvas, initialized transparent.
   let canvas = Buffer.alloc(width * height * 4, 0);
-  for (let i = 0; i < count; i++) {
-    const rgba = Buffer.alloc(width * height * 4, 0);
-    reader.decodeAndBlitFrameRGBA(i, rgba);
-    // composite onto running canvas (simple over)
+  // Snapshot used for disposal method 3 (restore-to-previous).
+  let previous: Buffer | null = null;
+
+  for (const input of inputs) {
+    // For disposal method 3 we need the canvas state *before* this frame is
+    // composited, so the next frame can restore to it.
+    if (input.disposal === 3) {
+      previous = Buffer.from(canvas);
+    }
+
+    // Composite the frame onto the running canvas (simple over).
+    const rgba = input.rgba;
     for (let p = 0; p < rgba.length; p += 4) {
       const a = rgba[p + 3];
       if (a > 0) {
@@ -82,8 +106,68 @@ export function decodeGif(buffer: Buffer): Frame[] {
         canvas[p + 3] = a;
       }
     }
-    const snapshot = Buffer.from(canvas);
-    frames.push({ width, height, data: snapshot });
+
+    // Snapshot the composited result as the output frame.
+    frames.push({ width, height, data: Buffer.from(canvas) });
+
+    // Apply disposal *after* snapshotting, so it affects the next frame.
+    switch (input.disposal) {
+      case 2: // restore to background (transparent)
+        clearSubRect(canvas, width, height, input.x, input.y, input.width, input.height);
+        previous = null;
+        break;
+      case 3: // restore to previous
+        if (previous) {
+          canvas = Buffer.from(previous);
+        }
+        previous = null;
+        break;
+      default:
+        // 0 (none) / 1 (do not dispose): leave the canvas as-is.
+        previous = null;
+        break;
+    }
   }
   return frames;
+}
+
+/**
+ * Decode a GIF into individual RGBA frames. Uses `omggif` (pure JS) for parsing
+ * and {@link compositeGifFrames} for disposal-aware compositing.
+ */
+export function decodeGif(buffer: Buffer): Frame[] {
+  const { GifReader } = cjsRequire('omggif') as typeof import('omggif');
+  const reader = new GifReader(buffer);
+  const { width, height } = reader;
+  const count = reader.numFrames();
+
+  const inputs: GifFrameInput[] = [];
+  for (let i = 0; i < count; i++) {
+    const info = reader.frameInfo(i);
+    const rgba = Buffer.alloc(width * height * 4, 0);
+    reader.decodeAndBlitFrameRGBA(i, rgba);
+    inputs.push({
+      x: info.x,
+      y: info.y,
+      width: info.width,
+      height: info.height,
+      disposal: info.disposal,
+      rgba
+    });
+  }
+
+  return compositeGifFrames(width, height, inputs);
+}
+
+/** Zero out a sub-rectangle of an RGBA buffer (set to fully transparent). */
+function clearSubRect(buf: Buffer, canvasWidth: number, canvasHeight: number, x: number, y: number, w: number, h: number): void {
+  for (let row = 0; row < h; row++) {
+    const cy = y + row;
+    if (cy < 0 || cy >= canvasHeight) continue;
+    const rowStart = (cy * canvasWidth + Math.max(0, x)) * 4;
+    const len = Math.min(w, canvasWidth - Math.max(0, x)) * 4;
+    if (len > 0) {
+      buf.fill(0, rowStart, rowStart + len);
+    }
+  }
 }

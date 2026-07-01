@@ -284,6 +284,7 @@ var TinyMascot = (() => {
       this.offsetX = options.offsetX ?? DEFAULTS.offsetX;
       this.offsetY = options.offsetY ?? DEFAULTS.offsetY;
       this.relative = options.relative ?? DEFAULTS.relative;
+      this.onDestroy = options.onDestroy;
       this.frameTimer = new FrameTimer(options.fps ?? DEFAULTS.fps);
       const context = {
         events: this.events,
@@ -319,6 +320,7 @@ var TinyMascot = (() => {
       this.plugins.destroyAll();
       this.runtime.destroy();
       this.renderer.destroy();
+      this.onDestroy?.();
       this.events.clear();
     }
     /** Register a behavior plugin. Plugins receive the shared event bus + state API. */
@@ -783,16 +785,14 @@ var TinyMascot = (() => {
       fps: config.fps,
       position: config.position,
       offsetX: config.offsetX,
-      offsetY: config.offsetY
+      offsetY: config.offsetY,
+      // Tear the overlay down when the engine stops — the supported lifecycle
+      // hook, instead of overriding stop() on the instance.
+      onDestroy: () => overlay.destroy()
     });
     events.subscribe("say", ({ text, durationMs }) => {
       overlay.showBubble(text, durationMs);
     });
-    const originalStop = engine.stop.bind(engine);
-    engine.stop = () => {
-      originalStop();
-      overlay.destroy();
-    };
     return engine;
   }
 

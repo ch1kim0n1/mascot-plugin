@@ -82,4 +82,49 @@ describe('MascotEngine drag/teleport', () => {
 
     engine.stop();
   });
+
+  it('invokes onDestroy once on stop, after runtime/renderer teardown', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }));
+    const calls: string[] = [];
+    const renderer: Renderer = {
+      init: () => {},
+      draw: () => {},
+      clear: () => {},
+      destroy: () => { calls.push('renderer.destroy'); }
+    };
+    const runtime: Runtime = {
+      mount: () => {},
+      getViewport: (): Viewport => ({ width: 800, height: 600 }),
+      onTick: () => () => {},
+      onResize: () => () => {},
+      destroy: () => { calls.push('runtime.destroy'); }
+    };
+    const events = new EventBus();
+    const engine = new MascotEngine({
+      renderer, runtime, events, asset, fps: 10,
+      onDestroy: () => { calls.push('onDestroy'); }
+    });
+    await engine.start();
+
+    engine.stop();
+    // runtime + renderer torn down first, then onDestroy, then events cleared.
+    expect(calls).toEqual(['runtime.destroy', 'renderer.destroy', 'onDestroy']);
+
+    // stop() is idempotent: onDestroy must not fire a second time.
+    engine.stop();
+    expect(calls).toEqual(['runtime.destroy', 'renderer.destroy', 'onDestroy']);
+  });
+
+  it('does not invoke onDestroy when stop() is a no-op (never started)', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }));
+    const { renderer, runtime } = fakes();
+    const events = new EventBus();
+    let destroyed = false;
+    const engine = new MascotEngine({
+      renderer, runtime, events, asset, fps: 10,
+      onDestroy: () => { destroyed = true; }
+    });
+    engine.stop();
+    expect(destroyed).toBe(false);
+  });
 });

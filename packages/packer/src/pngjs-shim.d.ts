@@ -21,7 +21,8 @@ declare module 'omggif' {
     width: number;
     height: number;
     numFrames(): number;
-    frameInfo(index: number): { x: number; y: number; width: number; height: number; delay: number };
+    /** `disposal` is the GIF graphic-control disposal method (0–3 typically). */
+    frameInfo(index: number): { x: number; y: number; width: number; height: number; delay: number; disposal: number };
     decodeAndBlitFrameRGBA(index: number, out: Buffer): void;
   }
 }
