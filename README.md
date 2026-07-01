@@ -68,6 +68,7 @@ Everything talks over a typed **EventBus**.
 | `mascot-plugin/plugins` | `idleSleep`, `hoverReact`, `keyTrigger` |
 | `mascot-plugin/obs` | `websocketTriggers` streaming bridge |
 | `mascot-plugin/asset-pipeline` | `AssetLoader`, `AnimationRegistry`, `PackManager` |
+| `mascot-plugin/packer` | `packFrames`, Aseprite/GIF/PNG importers, `mascot-pack` CLI |
 
 Framework/desktop deps (`react`, `vue`, `solid-js`, `preact`, `svelte`, `electron`,
 `@tauri-apps/api`) are **optional peers** — install only what you use.
@@ -169,6 +170,33 @@ Place a `metadata.json` alongside your spritesheet:
 ```
 
 Frames are zero-indexed left-to-right across the spritesheet rows. `react` plays once on click then returns to `idle`.
+
+## Building a spritesheet with `mascot-pack`
+
+Don't hand-author sheets — pack frames from sources you already have. The
+`mascot-pack` CLI (from `mascot-plugin/packer`) reads frame PNGs, an Aseprite
+spritesheet export, or a GIF and emits a uniform-grid PNG + `metadata.json`.
+
+```sh
+# from a folder of frame PNGs (sorted by filename)
+mascot-pack --dir ./frames --out mascot.png --metadata metadata.json \
+  --idle 0-3 --react 4-5
+
+# from individual files
+mascot-pack ./frames/idle0.png ./frames/idle1.png --out mascot.png --metadata metadata.json
+
+# from an Aseprite spritesheet export (sheet.png + sheet.json)
+mascot-pack --aseprite sheet.json --sheet sheet.png --out mascot.png --metadata metadata.json
+
+# from a GIF (each frame becomes a sheet cell)
+mascot-pack --gif cat.gif --out mascot.png --metadata metadata.json
+```
+
+`--idle`/`--react` take ranges (`0-3`, `4,5`) over the zero-indexed input order.
+Without ranges, all frames become a looping `idle` animation. Uses the optional
+`pngjs` / `omggif` deps (pure JS, installed automatically).
+
+Programmatic API: `import { packFrames, decodeGif, parseAsepriteFrameRects } from 'mascot-plugin/packer'`.
 
 ## Position presets
 

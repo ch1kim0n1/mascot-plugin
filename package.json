@@ -6,7 +6,7 @@
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup --entry.index packages/core/src/index.ts --entry.react packages/react/src/index.ts --entry.webcomponent packages/web-component/src/index.ts --entry.auto packages/auto-init/src/index.ts --entry.terminal packages/renderers/terminal/src/index.ts --entry.node packages/runtimes/node/src/index.ts --entry.cli packages/cli/src/index.ts --entry.electron packages/runtimes/electron/src/index.ts --entry.tauri packages/runtimes/tauri/src/index.ts --entry.vue packages/vue/src/index.ts --entry.svelte packages/svelte/src/index.ts --entry.solid packages/solid/src/index.ts --entry.preact packages/preact/src/index.ts --entry.plugins packages/plugins/src/index.ts --entry.obs packages/integrations/obs/src/index.ts --entry.asset-pipeline packages/asset-pipeline/src/index.ts --dts --format esm,cjs --clean --out-dir dist",
+    "build": "tsup --entry.index packages/core/src/index.ts --entry.react packages/react/src/index.ts --entry.webcomponent packages/web-component/src/index.ts --entry.auto packages/auto-init/src/index.ts --entry.terminal packages/renderers/terminal/src/index.ts --entry.node packages/runtimes/node/src/index.ts --entry.cli packages/cli/src/index.ts --entry.electron packages/runtimes/electron/src/index.ts --entry.tauri packages/runtimes/tauri/src/index.ts --entry.vue packages/vue/src/index.ts --entry.svelte packages/svelte/src/index.ts --entry.solid packages/solid/src/index.ts --entry.preact packages/preact/src/index.ts --entry.plugins packages/plugins/src/index.ts --entry.obs packages/integrations/obs/src/index.ts --entry.asset-pipeline packages/asset-pipeline/src/index.ts --entry.packer packages/packer/src/index.ts --entry.packbin packages/packer/src/bin.ts --external pngjs --external omggif --dts --format esm,cjs --clean --out-dir dist",
     "lint": "eslint .",
     "test": "vitest run",
     "example": "esbuild packages/core/src/index.ts --bundle --format=iife --global-name=TinyMascot --outfile=example/tiny-mascot.global.js"
@@ -38,6 +38,9 @@
   "author": "ch1kim0n1",
   "license": "ISC",
   "type": "module",
+  "bin": {
+    "mascot-pack": "dist/packbin.cjs"
+  },
   "sideEffects": [
     "**/*.css",
     "./packages/web-component/src/index.ts"
@@ -54,24 +57,37 @@
     "url": "https://github.com/ch1kim0n1/mascot-plugin/issues"
   },
   "homepage": "https://github.com/ch1kim0n1/mascot-plugin#readme",
-  "dependencies": {},
   "peerDependencies": {
-    "react": "^18.0.0 || ^19.0.0",
-    "vue": "^3.0.0",
-    "solid-js": "^1.0.0",
-    "preact": "^10.0.0",
-    "svelte": "^4.0.0",
+    "@tauri-apps/api": "*",
     "electron": "*",
-    "@tauri-apps/api": "*"
+    "preact": "^10.0.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "solid-js": "^1.0.0",
+    "svelte": "^4.0.0",
+    "vue": "^3.0.0"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "vue": { "optional": true },
-    "solid-js": { "optional": true },
-    "preact": { "optional": true },
-    "svelte": { "optional": true },
-    "electron": { "optional": true },
-    "@tauri-apps/api": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    },
+    "solid-js": {
+      "optional": true
+    },
+    "preact": {
+      "optional": true
+    },
+    "svelte": {
+      "optional": true
+    },
+    "electron": {
+      "optional": true
+    },
+    "@tauri-apps/api": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^25.9.2",
@@ -170,6 +186,15 @@
       "types": "./dist/asset-pipeline.d.ts",
       "import": "./dist/asset-pipeline.js",
       "require": "./dist/asset-pipeline.cjs"
+    },
+    "./packer": {
+      "types": "./dist/packer.d.ts",
+      "import": "./dist/packer.js",
+      "require": "./dist/packer.cjs"
     }
+  },
+  "optionalDependencies": {
+    "omggif": "^1.0.10",
+    "pngjs": "^7.0.0"
   }
 }
