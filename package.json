@@ -6,7 +6,7 @@
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup --entry.index packages/core/src/index.ts --entry.react packages/react/src/index.ts --entry.webcomponent packages/web-component/src/index.ts --entry.auto packages/auto-init/src/index.ts --entry.terminal packages/renderers/terminal/src/index.ts --entry.node packages/runtimes/node/src/index.ts --entry.cli packages/cli/src/index.ts --entry.electron packages/runtimes/electron/src/index.ts --entry.tauri packages/runtimes/tauri/src/index.ts --entry.vue packages/vue/src/index.ts --entry.svelte packages/svelte/src/index.ts --entry.solid packages/solid/src/index.ts --entry.preact packages/preact/src/index.ts --entry.plugins packages/plugins/src/index.ts --entry.obs packages/integrations/obs/src/index.ts --entry.asset-pipeline packages/asset-pipeline/src/index.ts --entry.packer packages/packer/src/index.ts --entry.packbin packages/packer/src/bin.ts --external pngjs --external omggif --dts --format esm,cjs --clean --out-dir dist",
+    "build": "tsup --entry.index packages/core/src/index.ts --entry.react packages/react/src/index.ts --entry.webcomponent packages/web-component/src/index.ts --entry.auto packages/auto-init/src/index.ts --entry.terminal packages/renderers/terminal/src/index.ts --entry.node packages/runtimes/node/src/index.ts --entry.cli packages/cli/src/index.ts --entry.electron packages/runtimes/electron/src/index.ts --entry.tauri packages/runtimes/tauri/src/index.ts --entry.vue packages/vue/src/index.ts --entry.svelte packages/svelte/src/index.ts --entry.solid packages/solid/src/index.ts --entry.preact packages/preact/src/index.ts --entry.plugins packages/plugins/src/index.ts --entry.obs packages/integrations/obs/src/index.ts --entry.asset-pipeline packages/asset-pipeline/src/index.ts --entry.packer packages/packer/src/index.ts --entry.packbin packages/packer/src/bin.ts --entry.manager packages/manager/src/index.ts --external pngjs --external omggif --dts --format esm,cjs --clean --out-dir dist",
     "lint": "eslint .",
     "test": "vitest run",
     "example": "esbuild packages/auto-init/src/index.ts --bundle --format=iife --global-name=TinyMascot --outfile=example/tiny-mascot.global.js"
@@ -191,6 +191,11 @@
       "types": "./dist/packer.d.ts",
       "import": "./dist/packer.js",
       "require": "./dist/packer.cjs"
+    },
+    "./manager": {
+      "types": "./dist/manager.d.ts",
+      "import": "./dist/manager.js",
+      "require": "./dist/manager.cjs"
     }
   },
   "optionalDependencies": {

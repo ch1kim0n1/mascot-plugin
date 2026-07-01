@@ -69,6 +69,7 @@ Everything talks over a typed **EventBus**.
 | `mascot-plugin/obs` | `websocketTriggers` streaming bridge |
 | `mascot-plugin/asset-pipeline` | `AssetLoader`, `AnimationRegistry`, `PackManager` |
 | `mascot-plugin/packer` | `packFrames`, Aseprite/GIF/PNG importers, `mascot-pack` CLI |
+| `mascot-plugin/manager` | `MascotManager` — spawn/control multiple mascots |
 
 Framework/desktop deps (`react`, `vue`, `solid-js`, `preact`, `svelte`, `electron`,
 `@tauri-apps/api`) are **optional peers** — install only what you use.
