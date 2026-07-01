@@ -46,7 +46,8 @@
   },
   "sideEffects": [
     "**/*.css",
-    "./packages/web-component/src/index.ts"
+    "./packages/web-component/src/index.ts",
+    "./packages/auto-init/src/index.ts"
   ],
   "engines": {
     "node": ">=18"
