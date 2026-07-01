@@ -37,6 +37,10 @@ export class BrowserRuntime implements Runtime {
     if (this.draggable) {
       this.canvas.addEventListener('pointerdown', this.handlePointerDown);
       this.canvas.style.cursor = 'grab';
+      // Make the canvas focusable so keyboard users can move the mascot with
+      // arrow keys (equivalent to drag-to-move).
+      this.canvas.tabIndex = 0;
+      this.canvas.addEventListener('keydown', this.handleDragKey);
     }
     // When scoped to a container, observe its size; otherwise listen to window resize.
     if (this.container && typeof ResizeObserver !== 'undefined') {
@@ -81,6 +85,7 @@ export class BrowserRuntime implements Runtime {
     this.canvas.removeEventListener('mouseenter', this.handleEnter);
     this.canvas.removeEventListener('mouseleave', this.handleLeave);
     this.canvas.removeEventListener('pointerdown', this.handlePointerDown);
+    this.canvas.removeEventListener('keydown', this.handleDragKey);
     window.removeEventListener('pointermove', this.handlePointerMove);
     window.removeEventListener('pointerup', this.handlePointerUp);
     this.resizeObserver?.disconnect();
@@ -141,6 +146,24 @@ export class BrowserRuntime implements Runtime {
   private readonly handlePointerUp = (): void => {
     this.dragging = false;
     window.removeEventListener('pointermove', this.handlePointerMove);
+  };
+
+  private readonly handleDragKey = (e: KeyboardEvent): void => {
+    const step = e.shiftKey ? 20 : 10;
+    const rect = this.canvas.getBoundingClientRect();
+    let x = rect.left;
+    let y = rect.top;
+    let moved = false;
+    switch (e.key) {
+      case 'ArrowLeft': x -= step; moved = true; break;
+      case 'ArrowRight': x += step; moved = true; break;
+      case 'ArrowUp': y -= step; moved = true; break;
+      case 'ArrowDown': y += step; moved = true; break;
+    }
+    if (moved) {
+      e.preventDefault();
+      this.eventBus.emit('drag', { x, y });
+    }
   };
 
   private readonly handleResize = (): void => {

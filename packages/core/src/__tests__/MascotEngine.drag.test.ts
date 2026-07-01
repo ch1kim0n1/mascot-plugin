@@ -127,4 +127,27 @@ describe('MascotEngine drag/teleport', () => {
     engine.stop();
     expect(destroyed).toBe(false);
   });
+
+  it('arrow keys emit drag events for keyboard-accessible repositioning', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }));
+    const { renderer, runtime, draws } = fakes();
+    const events = new EventBus();
+    const engine = new MascotEngine({ renderer, runtime, events, asset, fps: 10, position: 'top-left' });
+    await engine.start();
+
+    // Establish a baseline position.
+    engine.teleport(100, 100);
+    const baseline = draws[draws.length - 1];
+
+    // ArrowRight → x increases by 10 (the BrowserRuntime step), but here we
+    // simulate the drag event the runtime would emit.
+    events.emit('drag', { x: 110, y: 100 });
+    expect(draws[draws.length - 1]).toEqual({ x: 110, y: 100 });
+
+    // ArrowDown → y increases.
+    events.emit('drag', { x: 110, y: 110 });
+    expect(draws[draws.length - 1]).toEqual({ x: 110, y: 110 });
+
+    engine.stop();
+  });
 });

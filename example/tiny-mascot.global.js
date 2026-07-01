@@ -711,6 +711,35 @@ var TinyMascot = (() => {
         this.dragging = false;
         window.removeEventListener("pointermove", this.handlePointerMove);
       };
+      this.handleDragKey = (e) => {
+        const step = e.shiftKey ? 20 : 10;
+        const rect = this.canvas.getBoundingClientRect();
+        let x = rect.left;
+        let y = rect.top;
+        let moved = false;
+        switch (e.key) {
+          case "ArrowLeft":
+            x -= step;
+            moved = true;
+            break;
+          case "ArrowRight":
+            x += step;
+            moved = true;
+            break;
+          case "ArrowUp":
+            y -= step;
+            moved = true;
+            break;
+          case "ArrowDown":
+            y += step;
+            moved = true;
+            break;
+        }
+        if (moved) {
+          e.preventDefault();
+          this.eventBus.emit("drag", { x, y });
+        }
+      };
       this.handleResize = () => {
         const viewport = this.getViewport();
         this.eventBus.emit("resize", viewport);
@@ -730,6 +759,8 @@ var TinyMascot = (() => {
       if (this.draggable) {
         this.canvas.addEventListener("pointerdown", this.handlePointerDown);
         this.canvas.style.cursor = "grab";
+        this.canvas.tabIndex = 0;
+        this.canvas.addEventListener("keydown", this.handleDragKey);
       }
       if (this.container && typeof ResizeObserver !== "undefined") {
         this.resizeObserver = new ResizeObserver(() => this.handleResize());
@@ -768,6 +799,7 @@ var TinyMascot = (() => {
       this.canvas.removeEventListener("mouseenter", this.handleEnter);
       this.canvas.removeEventListener("mouseleave", this.handleLeave);
       this.canvas.removeEventListener("pointerdown", this.handlePointerDown);
+      this.canvas.removeEventListener("keydown", this.handleDragKey);
       window.removeEventListener("pointermove", this.handlePointerMove);
       window.removeEventListener("pointerup", this.handlePointerUp);
       this.resizeObserver?.disconnect();
