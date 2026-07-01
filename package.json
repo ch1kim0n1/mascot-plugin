@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "prepublishOnly": "npm run build",
     "example": "esbuild packages/auto-init/src/index.ts --bundle --format=iife --global-name=TinyMascot --outfile=example/tiny-mascot.global.js"
   },
   "repository": {
