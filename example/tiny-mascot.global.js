@@ -99,9 +99,6 @@ var TinyMascot = (() => {
       this.lastTick = 0;
       this.interval = 1e3 / fps;
     }
-    setFps(fps) {
-      this.interval = 1e3 / fps;
-    }
     /** Reset the accumulator + last-tick baseline (e.g. after a pause). */
     reset() {
       this.accumulator = 0;
@@ -482,14 +479,21 @@ var TinyMascot = (() => {
 
   // packages/core/src/overlay/OverlayRoot.ts
   var OverlayRoot = class {
-    constructor(zIndex) {
+    constructor(options = {}) {
       this.bubbleTimer = null;
+      const { zIndex = 999999, container } = options;
       this.root = document.createElement("div");
-      this.root.style.position = "fixed";
+      if (container) {
+        this.root.style.position = "absolute";
+        this.root.style.width = "100%";
+        this.root.style.height = "100%";
+      } else {
+        this.root.style.position = "fixed";
+        this.root.style.width = "100vw";
+        this.root.style.height = "100vh";
+      }
       this.root.style.top = "0";
       this.root.style.left = "0";
-      this.root.style.width = "100vw";
-      this.root.style.height = "100vh";
       this.root.style.pointerEvents = "none";
       this.root.style.zIndex = String(zIndex);
       this.shadowRoot = this.root.attachShadow({ mode: "open" });
@@ -512,7 +516,7 @@ var TinyMascot = (() => {
       this.bubble.style.transform = "translateX(-50%)";
       this.shadowRoot.appendChild(this.canvas);
       this.shadowRoot.appendChild(this.bubble);
-      document.body.appendChild(this.root);
+      (container ?? document.body).appendChild(this.root);
     }
     setCanvasSize(size) {
       this.canvas.width = size;
@@ -649,10 +653,11 @@ var TinyMascot = (() => {
 
   // packages/core/src/runtime/BrowserRuntime.ts
   var BrowserRuntime = class {
-    constructor(canvas, eventBus, draggable = false) {
+    constructor(canvas, eventBus, draggable = false, container) {
       this.canvas = canvas;
       this.eventBus = eventBus;
       this.draggable = draggable;
+      this.container = container;
       this.rafId = 0;
       this.tickCb = null;
       this.resizeCbs = /* @__PURE__ */ new Set();
@@ -724,11 +729,19 @@ var TinyMascot = (() => {
         this.canvas.addEventListener("pointerdown", this.handlePointerDown);
         this.canvas.style.cursor = "grab";
       }
-      window.addEventListener("resize", this.handleResize);
+      if (this.container && typeof ResizeObserver !== "undefined") {
+        this.resizeObserver = new ResizeObserver(() => this.handleResize());
+        this.resizeObserver.observe(this.container);
+      } else {
+        window.addEventListener("resize", this.handleResize);
+      }
       window.addEventListener("keydown", this.handleKey);
       this.rafId = window.requestAnimationFrame(this.loop);
     }
     getViewport() {
+      if (this.container) {
+        return { width: this.container.clientWidth, height: this.container.clientHeight };
+      }
       return { width: window.innerWidth, height: window.innerHeight };
     }
     onTick(cb) {
@@ -755,6 +768,8 @@ var TinyMascot = (() => {
       this.canvas.removeEventListener("pointerdown", this.handlePointerDown);
       window.removeEventListener("pointermove", this.handlePointerMove);
       window.removeEventListener("pointerup", this.handlePointerUp);
+      this.resizeObserver?.disconnect();
+      this.resizeObserver = void 0;
       window.removeEventListener("resize", this.handleResize);
       window.removeEventListener("keydown", this.handleKey);
       this.tickCb = null;
@@ -768,14 +783,14 @@ var TinyMascot = (() => {
   async function createBrowserMascot(config) {
     const size = config.size ?? DEFAULT_SIZE;
     const zIndex = config.zIndex ?? DEFAULT_Z_INDEX;
-    const overlay = new OverlayRoot(zIndex);
+    const overlay = new OverlayRoot({ zIndex, container: config.container });
     try {
       overlay.setCanvasSize(size);
       overlay.canvas.setAttribute("role", "img");
       overlay.canvas.setAttribute("aria-label", config.ariaLabel ?? "Mascot");
       const events = new EventBus();
       const renderer = new CanvasRenderer(overlay.canvas);
-      const runtime = new BrowserRuntime(overlay.canvas, events, config.draggable ?? false);
+      const runtime = new BrowserRuntime(overlay.canvas, events, config.draggable ?? false, config.container);
       const asset = config.asset ?? await new SpriteLoader().loadAsset(config.spritesheet, config.metadata);
       const engine = new MascotEngine({
         renderer,

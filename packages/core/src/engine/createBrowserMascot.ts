@@ -23,7 +23,7 @@ export async function createBrowserMascot(config: MascotConfig): Promise<MascotE
   const size = config.size ?? DEFAULT_SIZE;
   const zIndex = config.zIndex ?? DEFAULT_Z_INDEX;
 
-  const overlay = new OverlayRoot(zIndex);
+  const overlay = new OverlayRoot({ zIndex, container: config.container });
   try {
     overlay.setCanvasSize(size);
 
@@ -33,7 +33,7 @@ export async function createBrowserMascot(config: MascotConfig): Promise<MascotE
 
     const events = new EventBus();
     const renderer = new CanvasRenderer(overlay.canvas);
-    const runtime = new BrowserRuntime(overlay.canvas, events, config.draggable ?? false);
+    const runtime = new BrowserRuntime(overlay.canvas, events, config.draggable ?? false, config.container);
 
     // Use a pre-loaded asset when supplied (e.g. the built-in default mascot);
     // otherwise fetch spritesheet + metadata from the configured URLs.

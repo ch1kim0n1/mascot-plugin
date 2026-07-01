@@ -1,3 +1,11 @@
+export interface OverlayRootOptions {
+  zIndex?: number;
+  /** When provided, the overlay is scoped to this element (position: absolute)
+   *  instead of the full viewport (position: fixed). The container must have
+   *  its own positioning context (e.g. position: relative). */
+  container?: HTMLElement;
+}
+
 export class OverlayRoot {
   readonly root: HTMLDivElement;
   readonly shadowRoot: ShadowRoot;
@@ -5,13 +13,20 @@ export class OverlayRoot {
   private readonly bubble: HTMLDivElement;
   private bubbleTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(zIndex: number) {
+  constructor(options: OverlayRootOptions = {}) {
+    const { zIndex = 999999, container } = options;
     this.root = document.createElement('div');
-    this.root.style.position = 'fixed';
+    if (container) {
+      this.root.style.position = 'absolute';
+      this.root.style.width = '100%';
+      this.root.style.height = '100%';
+    } else {
+      this.root.style.position = 'fixed';
+      this.root.style.width = '100vw';
+      this.root.style.height = '100vh';
+    }
     this.root.style.top = '0';
     this.root.style.left = '0';
-    this.root.style.width = '100vw';
-    this.root.style.height = '100vh';
     this.root.style.pointerEvents = 'none';
     this.root.style.zIndex = String(zIndex);
 
@@ -39,7 +54,7 @@ export class OverlayRoot {
 
     this.shadowRoot.appendChild(this.canvas);
     this.shadowRoot.appendChild(this.bubble);
-    document.body.appendChild(this.root);
+    (container ?? document.body).appendChild(this.root);
   }
 
   setCanvasSize(size: number): void {

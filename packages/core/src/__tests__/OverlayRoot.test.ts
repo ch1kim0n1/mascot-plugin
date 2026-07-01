@@ -3,7 +3,7 @@ import { OverlayRoot } from '../overlay/OverlayRoot';
 
 describe('OverlayRoot', () => {
   it('creates fixed full-page overlay with shadow-root canvas', () => {
-    const overlay = new OverlayRoot(999999);
+    const overlay = new OverlayRoot({ zIndex: 999999 });
 
     expect(overlay.root.style.position).toBe('fixed');
     expect(overlay.root.style.pointerEvents).toBe('none');
@@ -15,7 +15,7 @@ describe('OverlayRoot', () => {
 
   it('shows and hides a speech bubble', () => {
     vi.useFakeTimers();
-    const overlay = new OverlayRoot(999999);
+    const overlay = new OverlayRoot({ zIndex: 999999 });
     overlay.setCanvasSize(32);
     overlay.setCanvasPosition(100, 200);
 
@@ -34,5 +34,21 @@ describe('OverlayRoot', () => {
 
     overlay.destroy();
     vi.useRealTimers();
+  });
+
+  it('scopes to a container element with absolute positioning', () => {
+    const container = document.createElement('div');
+    container.style.position = 'relative';
+    document.body.appendChild(container);
+
+    const overlay = new OverlayRoot({ zIndex: 100, container });
+
+    expect(overlay.root.style.position).toBe('absolute');
+    expect(overlay.root.style.width).toBe('100%');
+    expect(overlay.root.style.height).toBe('100%');
+    expect(container.contains(overlay.root)).toBe(true);
+
+    overlay.destroy();
+    container.remove();
   });
 });

@@ -3,8 +3,9 @@ import type { EventBus } from '../events/EventBus';
 
 /**
  * Browser runtime: drives the loop with requestAnimationFrame, reads the
- * viewport from window, and translates DOM input on the mascot canvas into
- * EventBus events (click / hover / unhover / keypress).
+ * viewport from window (or a container element when provided), and translates
+ * DOM input on the mascot canvas into EventBus events (click / hover / unhover
+ * / keypress).
  */
 export class BrowserRuntime implements Runtime {
   private rafId = 0;
@@ -15,11 +16,13 @@ export class BrowserRuntime implements Runtime {
   private dragging = false;
   private dragOffsetX = 0;
   private dragOffsetY = 0;
+  private resizeObserver?: ResizeObserver;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly eventBus: EventBus,
-    private readonly draggable = false
+    private readonly draggable = false,
+    private readonly container?: HTMLElement
   ) {}
 
   mount(): void {
@@ -35,13 +38,22 @@ export class BrowserRuntime implements Runtime {
       this.canvas.addEventListener('pointerdown', this.handlePointerDown);
       this.canvas.style.cursor = 'grab';
     }
-    window.addEventListener('resize', this.handleResize);
+    // When scoped to a container, observe its size; otherwise listen to window resize.
+    if (this.container && typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => this.handleResize());
+      this.resizeObserver.observe(this.container);
+    } else {
+      window.addEventListener('resize', this.handleResize);
+    }
     window.addEventListener('keydown', this.handleKey);
 
     this.rafId = window.requestAnimationFrame(this.loop);
   }
 
   getViewport(): Viewport {
+    if (this.container) {
+      return { width: this.container.clientWidth, height: this.container.clientHeight };
+    }
     return { width: window.innerWidth, height: window.innerHeight };
   }
 
@@ -71,6 +83,8 @@ export class BrowserRuntime implements Runtime {
     this.canvas.removeEventListener('pointerdown', this.handlePointerDown);
     window.removeEventListener('pointermove', this.handlePointerMove);
     window.removeEventListener('pointerup', this.handlePointerUp);
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = undefined;
     window.removeEventListener('resize', this.handleResize);
     window.removeEventListener('keydown', this.handleKey);
     this.tickCb = null;

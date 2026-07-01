@@ -47,7 +47,7 @@
     background-blend-mode: normal;
     overflow: hidden;
   }
-  .preview .hint { position: absolute; top: 12px; left: 14px; font-size: 0.75rem; color: #484f58; }
+  .preview .hint { position: absolute; top: 12px; left: 14px; font-size: 0.75rem; color: #484f58; z-index: 0; }
   pre {
     background: #0d1117; border: 1px solid #21262d; border-radius: 8px; padding: 14px;
     font-size: 0.78rem; line-height: 1.6; overflow-x: auto; margin-top: 12px;
@@ -146,14 +146,15 @@
     apply();
   });
 
-  // The mascot overlay is fixed to the viewport; for a contained preview we
-  // temporarily let it render viewport-anchored (the playground shows the real
-  // integration behavior). Click the mascot to trigger react.
+  // The mascot is scoped to the preview box via the `container` option, so
+  // it renders inside the dashed area instead of over the whole page. Click
+  // the mascot to trigger react.
   async function apply() {
     if (engine) { engine.stop(); engine = null; }
     const cfg = {
       size: state.size, fps: state.fps, position: state.position,
-      offsetX: state.ox, offsetY: state.oy
+      offsetX: state.ox, offsetY: state.oy,
+      container: $('preview')
     };
     if (state.sheet && state.meta) { cfg.spritesheet = state.sheet; cfg.metadata = state.meta; }
     else { cfg.asset = window.TinyMascot.createDefaultMascotAsset ? window.TinyMascot.createDefaultMascotAsset() : undefined; }

@@ -125,4 +125,8 @@ export interface MascotConfig {
   ariaLabel?: string;
   /** Enable pointer drag-to-move. Default false. */
   draggable?: boolean;
+  /** When provided, the overlay is scoped to this element instead of the full
+   *  viewport. The container must have its own positioning context (e.g.
+   *  `position: relative`). Useful for previews, embedded widgets, etc. */
+  container?: HTMLElement;
 }
