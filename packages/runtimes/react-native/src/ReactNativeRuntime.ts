@@ -50,9 +50,10 @@ export class ReactNativeRuntime implements Runtime {
 
   onTick(cb: TickCallback): () => void {
     this.tickCb = cb;
-    // Lazily start the loop on first subscriber.
+    // Lazily start the loop on first subscriber. The tick fires at ~60Hz; the
+    // engine's FrameTimer throttles actual frame advances to the configured
+    // fps, so a higher tick rate is wasteful but never produces wrong animation.
     if (!this.stopTick) {
-      // interval is derived from the engine's fps via setFps; default 16ms.
       this.stopTick = this.scheduler.start(() => this.tickCb?.(Date.now()), 16);
     }
     return () => {
@@ -60,14 +61,6 @@ export class ReactNativeRuntime implements Runtime {
         this.tickCb = null;
       }
     };
-  }
-
-  /** Update the tick interval (called when the engine fps is known). */
-  setFps(fps: number): void {
-    if (this.stopTick) {
-      this.stopTick();
-    }
-    this.stopTick = this.scheduler.start(() => this.tickCb?.(Date.now()), 1000 / fps);
   }
 
   onResize(cb: ResizeCallback): () => void {
