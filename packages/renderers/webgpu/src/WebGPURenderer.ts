@@ -46,21 +46,33 @@ export class WebGPURenderer implements Renderer {
       alphaMode: 'premultiplied'
     });
 
-    // Upload the spritesheet image to a GPU texture.
+    // Upload the spritesheet image to a GPU texture. When the asset carries an
+    // HTMLImageElement/HTMLCanvasElement (no `close`), we allocate an
+    // ImageBitmap to upload; its contents are snapshotted into the queue by
+    // copyExternalImageToTexture, so we close it immediately after to release
+    // the bitmap's backing memory. A caller-supplied ImageBitmap stays owned
+    // by the caller and is left alone.
     const bitmap = asset.image as ImageBitmap | HTMLImageElement;
-    const source = 'close' in bitmap ? bitmap : await createImageBitmap(bitmap as HTMLImageElement);
-    this.framesPerRow = Math.max(1, Math.floor(source.width / asset.metadata.frameWidth));
+    const created = !('close' in bitmap);
+    const source = created ? await createImageBitmap(bitmap as HTMLImageElement) : bitmap;
+    try {
+      this.framesPerRow = Math.max(1, Math.floor(source.width / asset.metadata.frameWidth));
 
-    this.texture = this.device.createTexture({
-      size: [source.width, source.height, 1],
-      format: 'rgba8unorm',
-      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
-    });
-    this.device.queue.copyExternalImageToTexture(
-      { source },
-      { texture: this.texture },
-      [source.width, source.height, 1]
-    );
+      this.texture = this.device.createTexture({
+        size: [source.width, source.height, 1],
+        format: 'rgba8unorm',
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
+      });
+      this.device.queue.copyExternalImageToTexture(
+        { source },
+        { texture: this.texture },
+        [source.width, source.height, 1]
+      );
+    } finally {
+      if (created) {
+        (source as ImageBitmap).close();
+      }
+    }
 
     this.sampler = this.device.createSampler({
       magFilter: 'nearest',

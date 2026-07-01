@@ -111,4 +111,89 @@ describe('WebGPURenderer', () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
+
+  it('closes an ImageBitmap it creates from an HTMLImageElement after upload', async () => {
+    // An HTMLImageElement-shaped object (no `close`): the renderer must
+    // createImageBitmap it, upload, then close the bitmap to avoid a leak.
+    const htmlImage = { width: 128, height: 32 } as unknown as HTMLImageElement;
+    const createdBitmap = { width: 128, height: 32, close: vi.fn() };
+    const createImageBitmapSpy = vi.fn(() => Promise.resolve(createdBitmap));
+    vi.stubGlobal('createImageBitmap', createImageBitmapSpy);
+
+    const canvas = document.createElement('canvas');
+    const fakeTexture = { createView: () => ({}), destroy: vi.fn(), width: 128, height: 32 };
+    vi.spyOn(canvas, 'getContext').mockReturnValue({
+      configure: vi.fn(),
+      getCurrentTexture: () => fakeTexture
+    } as unknown as CanvasRenderingContext2D);
+
+    const fakePass = { setPipeline: vi.fn(), setBindGroup: vi.fn(), draw: vi.fn(), end: vi.fn() };
+    const fakeEncoder = { beginRenderPass: () => fakePass, finish: () => ({}) };
+    const fakeDevice = {
+      createTexture: () => fakeTexture,
+      createSampler: () => ({}),
+      createBuffer: () => ({ destroy: vi.fn() }),
+      createShaderModule: () => ({}),
+      createRenderPipeline: () => ({ getBindGroupLayout: () => ({}) }),
+      createBindGroup: () => ({}),
+      createCommandEncoder: () => fakeEncoder,
+      queue: { copyExternalImageToTexture: vi.fn(), writeBuffer: vi.fn(), submit: vi.fn() },
+      destroy: vi.fn()
+    };
+    vi.stubGlobal('navigator', { gpu: { requestAdapter: () => ({ requestDevice: () => fakeDevice }), getPreferredCanvasFormat: () => 'bgra8unorm' } });
+    vi.stubGlobal('GPUTextureUsage', { TEXTURE_BINDING: 1, COPY_DST: 2, RENDER_ATTACHMENT: 4 });
+    vi.stubGlobal('GPUBufferUsage', { UNIFORM: 1, COPY_DST: 2 });
+
+    const renderer = new WebGPURenderer(canvas);
+    await renderer.init({ kind: 'spritesheet', metadata: { frameWidth: 32, frameHeight: 32, animations: { idle: { frames: [0], loop: true } } }, image: htmlImage });
+
+    expect(createImageBitmapSpy).toHaveBeenCalledTimes(1);
+    expect(createdBitmap.close).toHaveBeenCalledTimes(1);
+
+    renderer.destroy();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('does not close a caller-supplied ImageBitmap', async () => {
+    // A caller-supplied ImageBitmap (has `close`): the renderer must NOT close
+    // it — the caller owns its lifetime.
+    const callerBitmap = { width: 128, height: 32, close: vi.fn() };
+    const createImageBitmapSpy = vi.fn();
+    vi.stubGlobal('createImageBitmap', createImageBitmapSpy);
+
+    const canvas = document.createElement('canvas');
+    const fakeTexture = { createView: () => ({}), destroy: vi.fn(), width: 128, height: 32 };
+    vi.spyOn(canvas, 'getContext').mockReturnValue({
+      configure: vi.fn(),
+      getCurrentTexture: () => fakeTexture
+    } as unknown as CanvasRenderingContext2D);
+
+    const fakePass = { setPipeline: vi.fn(), setBindGroup: vi.fn(), draw: vi.fn(), end: vi.fn() };
+    const fakeEncoder = { beginRenderPass: () => fakePass, finish: () => ({}) };
+    const fakeDevice = {
+      createTexture: () => fakeTexture,
+      createSampler: () => ({}),
+      createBuffer: () => ({ destroy: vi.fn() }),
+      createShaderModule: () => ({}),
+      createRenderPipeline: () => ({ getBindGroupLayout: () => ({}) }),
+      createBindGroup: () => ({}),
+      createCommandEncoder: () => fakeEncoder,
+      queue: { copyExternalImageToTexture: vi.fn(), writeBuffer: vi.fn(), submit: vi.fn() },
+      destroy: vi.fn()
+    };
+    vi.stubGlobal('navigator', { gpu: { requestAdapter: () => ({ requestDevice: () => fakeDevice }), getPreferredCanvasFormat: () => 'bgra8unorm' } });
+    vi.stubGlobal('GPUTextureUsage', { TEXTURE_BINDING: 1, COPY_DST: 2, RENDER_ATTACHMENT: 4 });
+    vi.stubGlobal('GPUBufferUsage', { UNIFORM: 1, COPY_DST: 2 });
+
+    const renderer = new WebGPURenderer(canvas);
+    await renderer.init({ kind: 'spritesheet', metadata: { frameWidth: 32, frameHeight: 32, animations: { idle: { frames: [0], loop: true } } }, image: callerBitmap });
+
+    expect(createImageBitmapSpy).not.toHaveBeenCalled();
+    expect(callerBitmap.close).not.toHaveBeenCalled();
+
+    renderer.destroy();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 });
