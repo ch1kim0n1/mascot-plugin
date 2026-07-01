@@ -98,6 +98,20 @@ export class WebGPURenderer implements Renderer {
     if (!this.device || !this.context || !this.pipeline || !this.bindGroup || !this.uniformBuffer || !this.metadata) {
       return;
     }
+
+    // Position and size the canvas in the viewport, mirroring CanvasRenderer.
+    // The full-screen quad then fills this correctly-sized canvas with the
+    // selected sprite cell, so the mascot appears at (frame.x, frame.y) at
+    // frame.size × frame.size.
+    this.canvas.style.left = `${frame.x}px`;
+    this.canvas.style.top = `${frame.y}px`;
+    if (this.canvas.width !== frame.size) {
+      this.canvas.width = frame.size;
+      this.canvas.height = frame.size;
+      this.canvas.style.width = `${frame.size}px`;
+      this.canvas.style.height = `${frame.size}px`;
+    }
+
     const { frameWidth, frameHeight } = this.metadata;
     const textureWidth = this.texture?.width ?? frameWidth * this.framesPerRow;
     const textureHeight = this.texture?.height ?? frameHeight;
