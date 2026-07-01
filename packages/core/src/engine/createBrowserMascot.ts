@@ -30,8 +30,11 @@ export async function createBrowserMascot(config: MascotConfig): Promise<MascotE
   const renderer = new CanvasRenderer(overlay.canvas);
   const runtime = new BrowserRuntime(overlay.canvas, events);
 
-  const loader = new SpriteLoader();
-  const asset = await loader.loadAsset(config.spritesheet, config.metadata);
+  // Use a pre-loaded asset when supplied (e.g. the built-in default mascot);
+  // otherwise fetch spritesheet + metadata from the configured URLs.
+  const asset =
+    config.asset ??
+    (await new SpriteLoader().loadAsset(config.spritesheet!, config.metadata!));
 
   const engine = new MascotEngine({
     renderer,

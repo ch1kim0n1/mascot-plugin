@@ -59,6 +59,7 @@ Everything talks over a typed **EventBus**.
 | `mascot-plugin/solid` | Solid `Mascot` component |
 | `mascot-plugin/preact` | Preact `<Mascot/>` |
 | `mascot-plugin/web-component` | `<tiny-mascot>` custom element |
+| `mascot-plugin/auto-init` | auto-defines `<tiny-mascot>` + `TinyMascot` global (zero-config) |
 | `mascot-plugin/terminal` | `TerminalRenderer` / `AnsiRenderer` |
 | `mascot-plugin/node` | `NodeRuntime`, `loadAsciiAsset` |
 | `mascot-plugin/cli` | `createCliMascot` + terminal/node re-exports |
@@ -76,6 +77,20 @@ Framework/desktop deps (`react`, `vue`, `solid-js`, `preact`, `svelte`, `electro
 ```sh
 npm install mascot-plugin
 ```
+
+## Zero-config (no assets, no JS)
+
+The web component ships with a built-in default mascot, so you can drop one
+into any page with a single script tag and no spritesheet of your own:
+
+```html
+<script type="module" src="https://esm.sh/mascot-plugin/auto-init"></script>
+<tiny-mascot position="bottom-right" size="64"></tiny-mascot>
+```
+
+`mascot-plugin/auto-init` defines the `<tiny-mascot>` custom element and exposes
+a `TinyMascot` global. Any `<tiny-mascot>` already in the DOM is auto-upgraded.
+Omit `spritesheet`/`metadata` to use the bundled default character.
 
 ## React usage
 

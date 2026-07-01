@@ -1,4 +1,5 @@
 import { createBrowserMascot, type MascotConfig, type MascotEngine, type Position } from '../../core/src';
+import { createDefaultMascotAsset } from './defaultMascot';
 
 export class TinyMascotElement extends HTMLElement {
   static get observedAttributes(): string[] {
@@ -29,13 +30,7 @@ export class TinyMascotElement extends HTMLElement {
     const spritesheet = this.getAttribute('spritesheet');
     const metadata = this.getAttribute('metadata');
 
-    if (!spritesheet || !metadata) {
-      return;
-    }
-
     const config: MascotConfig = {
-      spritesheet,
-      metadata,
       size: this.toNumber(this.getAttribute('size')),
       fps: this.toNumber(this.getAttribute('fps')),
       position: (this.getAttribute('position') as Position | null) ?? undefined,
@@ -43,6 +38,15 @@ export class TinyMascotElement extends HTMLElement {
       offsetY: this.toNumber(this.getAttribute('offset-y')),
       zIndex: this.toNumber(this.getAttribute('z-index'))
     };
+
+    // No assets supplied → use the built-in default mascot so the element
+    // works with zero configuration: `<tiny-mascot></tiny-mascot>`.
+    if (!spritesheet || !metadata) {
+      config.asset = createDefaultMascotAsset();
+    } else {
+      config.spritesheet = spritesheet;
+      config.metadata = metadata;
+    }
 
     this.mountToken = {};
     const token = this.mountToken;

@@ -109,8 +109,12 @@ export interface Runtime {
 // ─── Engine config ───────────────────────────────────────────────────────────
 
 export interface MascotConfig {
-  spritesheet: string;
-  metadata: string;
+  /** Spritesheet image URL. Optional when `asset` is provided directly. */
+  spritesheet?: string;
+  /** Sprite metadata JSON URL. Optional when `asset` is provided directly. */
+  metadata?: string;
+  /** Pre-loaded asset. When provided, `spritesheet`/`metadata` are ignored. */
+  asset?: LoadedAsset;
   size?: number;
   fps?: number;
   position?: Position;
