@@ -7,10 +7,6 @@ export class FrameTimer {
     this.interval = 1000 / fps;
   }
 
-  setFps(fps: number): void {
-    this.interval = 1000 / fps;
-  }
-
   /** Reset the accumulator + last-tick baseline (e.g. after a pause). */
   reset(): void {
     this.accumulator = 0;
