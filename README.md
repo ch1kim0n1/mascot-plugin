@@ -261,6 +261,18 @@ The bundled `cutie.json` pack animates in the terminal corner (idle loop, reacts
 └──────────────────────────────┘
 ```
 
+## Accessibility
+
+The engine respects user preferences and host-page state automatically:
+
+- **`prefers-reduced-motion: reduce`** — animation freezes on the first frame
+  instead of cycling. Toggling the OS/browser preference live re-enables motion.
+- **Page visibility** — the loop pauses when the tab is hidden and resumes on
+  focus (no wasted CPU/battery).
+- **ARIA** — the browser canvas is exposed as `role="img"` with an
+  `aria-label` (set via the `ariaLabel` config / `aria-label` attribute on
+  `<tiny-mascot>`; defaults to `"Mascot"`).
+
 ## Plugins
 
 ```ts

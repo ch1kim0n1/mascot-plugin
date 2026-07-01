@@ -11,6 +11,12 @@ export class FrameTimer {
     this.interval = 1000 / fps;
   }
 
+  /** Reset the accumulator + last-tick baseline (e.g. after a pause). */
+  reset(): void {
+    this.accumulator = 0;
+    this.lastTick = 0;
+  }
+
   shouldAdvance(now: number): boolean {
     if (this.lastTick === 0) {
       this.lastTick = now;

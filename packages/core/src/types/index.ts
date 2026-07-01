@@ -121,4 +121,6 @@ export interface MascotConfig {
   offsetX?: number;
   offsetY?: number;
   zIndex?: number;
+  /** Accessible label for the mascot canvas (role="img"). Defaults to "Mascot". */
+  ariaLabel?: string;
 }

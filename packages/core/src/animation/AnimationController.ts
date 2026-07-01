@@ -35,6 +35,15 @@ export class AnimationController {
   }
 
   /**
+   * The current frame index for the current state, without advancing. Used for
+   * static rendering when motion is reduced (accessibility) or the tab is hidden.
+   */
+  currentFrame(metadata: SpriteMetadata): number {
+    const animation = metadata.animations[this.state] ?? metadata.animations.idle;
+    return animation.frames[this.frameIndex] ?? animation.frames[0] ?? 0;
+  }
+
+  /**
    * Advance one frame for the current state.
    * Falls back to the `idle` animation if the current state has no definition.
    */

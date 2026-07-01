@@ -26,6 +26,10 @@ export async function createBrowserMascot(config: MascotConfig): Promise<MascotE
   const overlay = new OverlayRoot(zIndex);
   overlay.setCanvasSize(size);
 
+  // Accessibility: expose the canvas as a labelled image.
+  overlay.canvas.setAttribute('role', 'img');
+  overlay.canvas.setAttribute('aria-label', config.ariaLabel ?? 'Mascot');
+
   const events = new EventBus();
   const renderer = new CanvasRenderer(overlay.canvas);
   const runtime = new BrowserRuntime(overlay.canvas, events);

@@ -3,7 +3,7 @@ import { createDefaultMascotAsset } from './defaultMascot';
 
 export class TinyMascotElement extends HTMLElement {
   static get observedAttributes(): string[] {
-    return ['spritesheet', 'metadata', 'size', 'fps', 'position', 'offset-x', 'offset-y', 'z-index'];
+    return ['spritesheet', 'metadata', 'size', 'fps', 'position', 'offset-x', 'offset-y', 'z-index', 'aria-label'];
   }
 
   private engine: MascotEngine | null = null;
@@ -36,7 +36,8 @@ export class TinyMascotElement extends HTMLElement {
       position: (this.getAttribute('position') as Position | null) ?? undefined,
       offsetX: this.toNumber(this.getAttribute('offset-x')),
       offsetY: this.toNumber(this.getAttribute('offset-y')),
-      zIndex: this.toNumber(this.getAttribute('z-index'))
+      zIndex: this.toNumber(this.getAttribute('z-index')),
+      ariaLabel: this.getAttribute('aria-label') ?? undefined
     };
 
     // No assets supplied → use the built-in default mascot so the element

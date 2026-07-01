@@ -67,6 +67,12 @@ export class MascotEngine {
   private started = false;
   private unsubscribers: Array<() => void> = [];
 
+  // Accessibility / performance: freeze animation when the user prefers
+  // reduced motion or the tab/page is hidden.
+  private reducedMotion = false;
+  private paused = false;
+  private mql?: MediaQueryList;
+
   constructor(options: MascotEngineOptions) {
     this.renderer = options.renderer;
     this.runtime = options.runtime;
@@ -102,6 +108,9 @@ export class MascotEngine {
     this.unsubscribers.push(this.runtime.onTick(this.tick));
     this.unsubscribers.push(this.runtime.onResize(() => this.updatePosition()));
 
+    this.setupAccessibility();
+
+    // updatePosition also renders the static frame when motion is reduced.
     this.updatePosition();
   }
 
@@ -115,6 +124,8 @@ export class MascotEngine {
       unsub();
     }
     this.unsubscribers = [];
+    this.mql?.removeEventListener('change', this.handleMotionChange);
+    this.mql = undefined;
     this.plugins.destroyAll();
     this.runtime.destroy();
     this.renderer.destroy();
@@ -177,9 +188,66 @@ export class MascotEngine {
     );
     this.x = coords.x;
     this.y = coords.y;
+
+    // Keep the static frame positioned when motion is frozen.
+    if (this.started && (this.reducedMotion || this.paused)) {
+      this.drawStatic();
+    }
   }
 
+  /**
+   * Draw the current frame without advancing — used when motion is reduced
+   * (accessibility) or the page is hidden (no wasted work).
+   */
+  private drawStatic(): void {
+    this.renderer.draw({
+      frameIndex: this.animation.currentFrame(this.metadata),
+      state: this.stateMachine.currentState,
+      x: this.x,
+      y: this.y,
+      size: this.size
+    });
+  }
+
+  // ── accessibility / pause ────────────────────────────────────────────────
+
+  private setupAccessibility(): void {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      this.mql = window.matchMedia('(prefers-reduced-motion: reduce)');
+      this.reducedMotion = this.mql.matches;
+      this.mql.addEventListener('change', this.handleMotionChange);
+    }
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.handleVisibilityChange);
+      this.unsubscribers.push(() => {
+        document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+      });
+    }
+  }
+
+  private readonly handleMotionChange = (e: MediaQueryListEvent): void => {
+    this.reducedMotion = e.matches;
+    this.frameTimer.reset();
+    if (this.reducedMotion) {
+      this.drawStatic();
+    }
+  };
+
+  private readonly handleVisibilityChange = (): void => {
+    if (document.hidden) {
+      this.paused = true;
+    } else {
+      this.paused = false;
+      this.frameTimer.reset();
+    }
+  };
+
   private readonly tick = (timestamp: number): void => {
+    // Freeze animation under reduced-motion preference or when the tab is hidden.
+    if (this.reducedMotion || this.paused) {
+      return;
+    }
+
     if (!this.frameTimer.shouldAdvance(timestamp)) {
       return;
     }
