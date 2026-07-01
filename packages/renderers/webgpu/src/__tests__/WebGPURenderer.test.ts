@@ -62,7 +62,8 @@ describe('WebGPURenderer', () => {
         writeBuffer: vi.fn(),
         submit: vi.fn()
       },
-      destroy: vi.fn()
+      destroy: vi.fn(),
+      lost: new Promise<{ reason: string }>(() => {}) // never resolves
     };
     const fakeAdapter = { requestDevice: () => fakeDevice };
     const fakeGpu = {
@@ -138,7 +139,8 @@ describe('WebGPURenderer', () => {
       createBindGroup: () => ({}),
       createCommandEncoder: () => fakeEncoder,
       queue: { copyExternalImageToTexture: vi.fn(), writeBuffer: vi.fn(), submit: vi.fn() },
-      destroy: vi.fn()
+      destroy: vi.fn(),
+      lost: new Promise<{ reason: string }>(() => {}) // never resolves
     };
     vi.stubGlobal('navigator', { gpu: { requestAdapter: () => ({ requestDevice: () => fakeDevice }), getPreferredCanvasFormat: () => 'bgra8unorm' } });
     vi.stubGlobal('GPUTextureUsage', { TEXTURE_BINDING: 1, COPY_DST: 2, RENDER_ATTACHMENT: 4 });
@@ -180,7 +182,8 @@ describe('WebGPURenderer', () => {
       createBindGroup: () => ({}),
       createCommandEncoder: () => fakeEncoder,
       queue: { copyExternalImageToTexture: vi.fn(), writeBuffer: vi.fn(), submit: vi.fn() },
-      destroy: vi.fn()
+      destroy: vi.fn(),
+      lost: new Promise<{ reason: string }>(() => {}) // never resolves
     };
     vi.stubGlobal('navigator', { gpu: { requestAdapter: () => ({ requestDevice: () => fakeDevice }), getPreferredCanvasFormat: () => 'bgra8unorm' } });
     vi.stubGlobal('GPUTextureUsage', { TEXTURE_BINDING: 1, COPY_DST: 2, RENDER_ATTACHMENT: 4 });
@@ -193,6 +196,51 @@ describe('WebGPURenderer', () => {
     expect(callerBitmap.close).not.toHaveBeenCalled();
 
     renderer.destroy();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('tears down and calls onDeviceLost when the GPU device is lost', async () => {
+    const callerBitmap = { width: 128, height: 32, close: vi.fn() };
+    const canvas = document.createElement('canvas');
+    const fakeTexture = { createView: () => ({}), destroy: vi.fn(), width: 128, height: 32 };
+    vi.spyOn(canvas, 'getContext').mockReturnValue({
+      configure: vi.fn(),
+      getCurrentTexture: () => fakeTexture
+    } as never);
+
+    // A device whose `lost` promise we can resolve manually.
+    let lostResolve!: (info: { reason: string }) => void;
+    const lostPromise = new Promise<{ reason: string }>((r) => { lostResolve = r; });
+    const fakeDevice = {
+      createTexture: () => fakeTexture,
+      createSampler: () => ({}),
+      createBuffer: () => ({ destroy: vi.fn() }),
+      createShaderModule: () => ({}),
+      createRenderPipeline: () => ({ getBindGroupLayout: () => ({}) }),
+      createBindGroup: () => ({}),
+      createCommandEncoder: () => ({ beginRenderPass: () => ({ setPipeline: vi.fn(), setBindGroup: vi.fn(), draw: vi.fn(), end: vi.fn() }), finish: () => ({}) }),
+      queue: { copyExternalImageToTexture: vi.fn(), writeBuffer: vi.fn(), submit: vi.fn() },
+      destroy: vi.fn(),
+      lost: lostPromise
+    };
+    vi.stubGlobal('navigator', { gpu: { requestAdapter: () => ({ requestDevice: () => fakeDevice }), getPreferredCanvasFormat: () => 'bgra8unorm' } });
+    vi.stubGlobal('GPUTextureUsage', { TEXTURE_BINDING: 1, COPY_DST: 2, RENDER_ATTACHMENT: 4 });
+    vi.stubGlobal('GPUBufferUsage', { UNIFORM: 1, COPY_DST: 2 });
+
+    const renderer = new WebGPURenderer(canvas);
+    await renderer.init({ kind: 'spritesheet', metadata: { frameWidth: 32, frameHeight: 32, animations: { idle: { frames: [0], loop: true } } }, image: callerBitmap });
+
+    let lostReason: string | undefined;
+    renderer.onDeviceLost = (reason) => { lostReason = reason; };
+
+    // Simulate device loss.
+    lostResolve({ reason: 'device-reset' });
+    await vi.waitFor(() => { expect(lostReason).toBe('device-reset'); });
+
+    // The renderer should have torn down its resources.
+    expect(fakeDevice.destroy).toHaveBeenCalled();
+
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });

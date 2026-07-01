@@ -19,6 +19,10 @@ export class WebGPURenderer implements Renderer {
   private format: GPUTextureFormat = 'bgra8unorm';
   private uniformBuffer: GPUBuffer | null = null;
   private framesPerRow = 1;
+  /** Called when the GPU device is lost (e.g. GPU reset, driver crash). The
+   *  renderer tears itself down; the caller can use this to fall back to
+   *  CanvasRenderer or surface an error. */
+  onDeviceLost?: (reason: string) => void;
 
   constructor(private readonly canvas: HTMLCanvasElement) {}
 
@@ -38,6 +42,13 @@ export class WebGPURenderer implements Renderer {
       throw new Error('WebGPURenderer: no GPU adapter available');
     }
     this.device = await adapter.requestDevice();
+    // Handle device loss (GPU reset, driver crash, etc.). The promise resolves
+    // when the device is lost; we tear down and notify the caller so they can
+    // fall back to CanvasRenderer or reinitialize.
+    this.device.lost.then((info) => {
+      this.destroy();
+      this.onDeviceLost?.(info.reason);
+    });
     this.context = this.canvas.getContext('webgpu') as GPUCanvasContext;
     this.format = navigator.gpu.getPreferredCanvasFormat();
     this.context.configure({

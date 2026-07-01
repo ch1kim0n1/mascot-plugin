@@ -137,7 +137,6 @@ describe('MascotEngine drag/teleport', () => {
 
     // Establish a baseline position.
     engine.teleport(100, 100);
-    const baseline = draws[draws.length - 1];
 
     // ArrowRight → x increases by 10 (the BrowserRuntime step), but here we
     // simulate the drag event the runtime would emit.
