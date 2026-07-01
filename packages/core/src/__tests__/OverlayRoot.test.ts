@@ -25,6 +25,9 @@ describe('OverlayRoot', () => {
     ) as HTMLDivElement | undefined;
     expect(shown).toBeTruthy();
     expect(shown!.textContent).toBe('Hello!');
+    // Speech bubbles must be announced to screen readers.
+    expect(shown!.getAttribute('role')).toBe('status');
+    expect(shown!.getAttribute('aria-live')).toBe('polite');
 
     vi.advanceTimersByTime(1000);
     const afterHide = [...overlay.shadowRoot.children].find(

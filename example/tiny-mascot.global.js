@@ -501,6 +501,8 @@ var TinyMascot = (() => {
       this.canvas.style.pointerEvents = "auto";
       this.canvas.style.position = "absolute";
       this.bubble = document.createElement("div");
+      this.bubble.setAttribute("role", "status");
+      this.bubble.setAttribute("aria-live", "polite");
       this.bubble.style.position = "absolute";
       this.bubble.style.pointerEvents = "none";
       this.bubble.style.maxWidth = "220px";
