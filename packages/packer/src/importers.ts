@@ -1,5 +1,6 @@
 import type { Frame } from './packer';
 import { decodePng } from './packer';
+import { cjsRequire } from './cjs-require';
 
 /** Aseprite frame rect (in the exported sheet's pixel coordinates). */
 interface AsepriteRect { x: number; y: number; w: number; h: number }
@@ -60,8 +61,7 @@ function cropRect(sheet: Frame, x: number, y: number, w: number, h: number): Fra
  * composited over the previous frame (GIF disposal method 0/1) as needed.
  */
 export function decodeGif(buffer: Buffer): Frame[] {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { GifReader } = require('omggif') as typeof import('omggif');
+  const { GifReader } = cjsRequire('omggif') as typeof import('omggif');
   const reader = new GifReader(buffer);
   const { width, height } = reader;
   const count = reader.numFrames();

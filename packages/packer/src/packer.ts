@@ -1,4 +1,5 @@
 import type { SpriteMetadata, AnimationDefinition } from '../../core/src';
+import { cjsRequire } from './cjs-require';
 
 /** A decoded RGBA frame. `data` is `width * height * 4` bytes. */
 export interface Frame {
@@ -72,8 +73,7 @@ export function packFrames(options: PackOptions): PackResult {
 
 /** Encode an RGBA buffer into a PNG. Lazy-loads `pngjs`. */
 export function encodePng(data: Buffer, width: number, height: number): Buffer {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { PNG } = require('pngjs') as typeof import('pngjs');
+  const { PNG } = cjsRequire('pngjs') as typeof import('pngjs');
   const png = new PNG({ width, height });
   data.copy(png.data);
   return PNG.sync.write(png);
@@ -81,8 +81,7 @@ export function encodePng(data: Buffer, width: number, height: number): Buffer {
 
 /** Decode a PNG file into a {@link Frame}. Lazy-loads `pngjs`. */
 export function decodePng(buffer: Buffer): Frame {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { PNG } = require('pngjs') as typeof import('pngjs');
+  const { PNG } = cjsRequire('pngjs') as typeof import('pngjs');
   const png = PNG.sync.read(buffer);
   return { width: png.width, height: png.height, data: png.data };
 }

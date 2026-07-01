@@ -48,6 +48,14 @@ var TinyMascot = (() => {
       this.setState("react");
     }
     /**
+     * The current frame index for the current state, without advancing. Used for
+     * static rendering when motion is reduced (accessibility) or the tab is hidden.
+     */
+    currentFrame(metadata) {
+      const animation = metadata.animations[this.state] ?? metadata.animations.idle;
+      return animation.frames[this.frameIndex] ?? animation.frames[0] ?? 0;
+    }
+    /**
      * Advance one frame for the current state.
      * Falls back to the `idle` animation if the current state has no definition.
      */
@@ -93,6 +101,11 @@ var TinyMascot = (() => {
     }
     setFps(fps) {
       this.interval = 1e3 / fps;
+    }
+    /** Reset the accumulator + last-tick baseline (e.g. after a pause). */
+    reset() {
+      this.accumulator = 0;
+      this.lastTick = 0;
     }
     shouldAdvance(now) {
       if (this.lastTick === 0) {
@@ -216,7 +229,32 @@ var TinyMascot = (() => {
       this.y = 0;
       this.started = false;
       this.unsubscribers = [];
+      // Accessibility / performance: freeze animation when the user prefers
+      // reduced motion or the tab/page is hidden.
+      this.reducedMotion = false;
+      this.paused = false;
+      // When true, updatePosition keeps the manually-set coordinates instead of
+      // recomputing from the position preset (set by drag-to-move).
+      this.manualPosition = false;
+      this.handleMotionChange = (e) => {
+        this.reducedMotion = e.matches;
+        this.frameTimer.reset();
+        if (this.reducedMotion) {
+          this.drawStatic();
+        }
+      };
+      this.handleVisibilityChange = () => {
+        if (document.hidden) {
+          this.paused = true;
+        } else {
+          this.paused = false;
+          this.frameTimer.reset();
+        }
+      };
       this.tick = (timestamp) => {
+        if (this.reducedMotion || this.paused) {
+          return;
+        }
         if (!this.frameTimer.shouldAdvance(timestamp)) {
           return;
         }
@@ -264,6 +302,7 @@ var TinyMascot = (() => {
       this.wireEvents();
       this.unsubscribers.push(this.runtime.onTick(this.tick));
       this.unsubscribers.push(this.runtime.onResize(() => this.updatePosition()));
+      this.setupAccessibility();
       this.updatePosition();
     }
     stop() {
@@ -275,6 +314,8 @@ var TinyMascot = (() => {
         unsub();
       }
       this.unsubscribers = [];
+      this.mql?.removeEventListener("change", this.handleMotionChange);
+      this.mql = void 0;
       this.plugins.destroyAll();
       this.runtime.destroy();
       this.renderer.destroy();
@@ -288,6 +329,36 @@ var TinyMascot = (() => {
     /** Fire an external trigger (IPC, websocket, manual). If a same-named animation exists, it plays. */
     emit(name, data) {
       this.events.emit("external", { name, data });
+    }
+    /**
+     * Show a speech bubble with `text` near the mascot for `durationMs`
+     * (default 3000). Emits a `say` event that a browser overlay renders; on
+     * non-visual platforms the event is still emitted for external handling.
+     */
+    say(text, durationMs = 3e3) {
+      this.events.emit("say", { text, durationMs });
+    }
+    /**
+     * Move the mascot to absolute viewport coordinates `(x, y)` and stop
+     * auto-positioning from the preset until {@link releasePosition} is called.
+     * Used by drag-to-move. Redraws immediately for responsive feedback.
+     */
+    teleport(x, y) {
+      this.manualPosition = true;
+      const { width, height } = this.runtime.getViewport();
+      this.x = Math.max(0, Math.min(x, width - this.size));
+      this.y = Math.max(0, Math.min(y, height - this.size));
+      if (this.started) {
+        this.drawStatic();
+      }
+    }
+    /** Resume auto-positioning from the configured preset (e.g. after a drag). */
+    releasePosition() {
+      this.manualPosition = false;
+      if (this.started) {
+        this.updatePosition();
+        this.drawStatic();
+      }
     }
     get state() {
       return this.stateMachine.currentState;
@@ -314,10 +385,23 @@ var TinyMascot = (() => {
           if (this.metadata.animations[name]) {
             this.setState(name);
           }
+        }),
+        // Drag-to-move: the runtime emits absolute viewport coordinates.
+        this.events.subscribe("drag", ({ x, y }) => {
+          this.teleport(x, y);
         })
       );
     }
     updatePosition() {
+      if (this.manualPosition) {
+        const { width: width2, height: height2 } = this.runtime.getViewport();
+        this.x = Math.max(0, Math.min(this.x, width2 - this.size));
+        this.y = Math.max(0, Math.min(this.y, height2 - this.size));
+        if (this.started && (this.reducedMotion || this.paused)) {
+          this.drawStatic();
+        }
+        return;
+      }
       const { width, height } = this.runtime.getViewport();
       const coords = this.positionManager.getCoordinates(
         this.position,
@@ -330,6 +414,36 @@ var TinyMascot = (() => {
       );
       this.x = coords.x;
       this.y = coords.y;
+      if (this.started && (this.reducedMotion || this.paused)) {
+        this.drawStatic();
+      }
+    }
+    /**
+     * Draw the current frame without advancing — used when motion is reduced
+     * (accessibility) or the page is hidden (no wasted work).
+     */
+    drawStatic() {
+      this.renderer.draw({
+        frameIndex: this.animation.currentFrame(this.metadata),
+        state: this.stateMachine.currentState,
+        x: this.x,
+        y: this.y,
+        size: this.size
+      });
+    }
+    // ── accessibility / pause ────────────────────────────────────────────────
+    setupAccessibility() {
+      if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+        this.mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+        this.reducedMotion = this.mql.matches;
+        this.mql.addEventListener("change", this.handleMotionChange);
+      }
+      if (typeof document !== "undefined") {
+        document.addEventListener("visibilitychange", this.handleVisibilityChange);
+        this.unsubscribers.push(() => {
+          document.removeEventListener("visibilitychange", this.handleVisibilityChange);
+        });
+      }
     }
   };
 
@@ -367,6 +481,7 @@ var TinyMascot = (() => {
   // packages/core/src/overlay/OverlayRoot.ts
   var OverlayRoot = class {
     constructor(zIndex) {
+      this.bubbleTimer = null;
       this.root = document.createElement("div");
       this.root.style.position = "fixed";
       this.root.style.top = "0";
@@ -379,7 +494,22 @@ var TinyMascot = (() => {
       this.canvas = document.createElement("canvas");
       this.canvas.style.pointerEvents = "auto";
       this.canvas.style.position = "absolute";
+      this.bubble = document.createElement("div");
+      this.bubble.style.position = "absolute";
+      this.bubble.style.pointerEvents = "none";
+      this.bubble.style.maxWidth = "220px";
+      this.bubble.style.padding = "6px 10px";
+      this.bubble.style.background = "#ffffff";
+      this.bubble.style.color = "#0d1117";
+      this.bubble.style.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      this.bubble.style.borderRadius = "10px";
+      this.bubble.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
+      this.bubble.style.whiteSpace = "pre-wrap";
+      this.bubble.style.wordBreak = "break-word";
+      this.bubble.style.display = "none";
+      this.bubble.style.transform = "translateX(-50%)";
       this.shadowRoot.appendChild(this.canvas);
+      this.shadowRoot.appendChild(this.bubble);
       document.body.appendChild(this.root);
     }
     setCanvasSize(size) {
@@ -391,8 +521,35 @@ var TinyMascot = (() => {
     setCanvasPosition(x, y) {
       this.canvas.style.left = `${x}px`;
       this.canvas.style.top = `${y}px`;
+      this.bubble.style.left = `${x + this.canvas.width / 2}px`;
+      this.bubble.style.top = `${y - 6}px`;
+      this.bubble.style.marginBottom = "0";
+      const bubbleHeight = this.bubble.offsetHeight || 0;
+      this.bubble.style.transform = `translate(-50%, -${bubbleHeight + 8}px)`;
+    }
+    /** Show a speech bubble with `text` for `durationMs` (default 3s). */
+    showBubble(text, durationMs = 3e3) {
+      this.bubble.textContent = text;
+      this.bubble.style.display = "block";
+      if (this.bubbleTimer) {
+        clearTimeout(this.bubbleTimer);
+      }
+      this.bubbleTimer = setTimeout(() => this.hideBubble(), durationMs);
+      const left = parseFloat(this.canvas.style.left || "0");
+      const top = parseFloat(this.canvas.style.top || "0");
+      this.setCanvasPosition(left, top);
+    }
+    hideBubble() {
+      this.bubble.style.display = "none";
+      if (this.bubbleTimer) {
+        clearTimeout(this.bubbleTimer);
+        this.bubbleTimer = null;
+      }
     }
     destroy() {
+      if (this.bubbleTimer) {
+        clearTimeout(this.bubbleTimer);
+      }
       this.root.remove();
     }
   };
@@ -490,13 +647,18 @@ var TinyMascot = (() => {
 
   // packages/core/src/runtime/BrowserRuntime.ts
   var BrowserRuntime = class {
-    constructor(canvas, eventBus) {
+    constructor(canvas, eventBus, draggable = false) {
       this.canvas = canvas;
       this.eventBus = eventBus;
+      this.draggable = draggable;
       this.rafId = 0;
       this.tickCb = null;
       this.resizeCbs = /* @__PURE__ */ new Set();
       this.mounted = false;
+      // Drag-to-move state: offset from pointer to canvas top-left at drag start.
+      this.dragging = false;
+      this.dragOffsetX = 0;
+      this.dragOffsetY = 0;
       this.loop = (timestamp) => {
         if (!this.mounted) {
           return;
@@ -516,6 +678,30 @@ var TinyMascot = (() => {
       this.handleKey = (e) => {
         this.eventBus.emit("keypress", { key: e.key });
       };
+      this.handlePointerDown = (e) => {
+        if (e.button !== 0) {
+          return;
+        }
+        const rect = this.canvas.getBoundingClientRect();
+        this.dragOffsetX = e.clientX - rect.left;
+        this.dragOffsetY = e.clientY - rect.top;
+        this.dragging = true;
+        window.addEventListener("pointermove", this.handlePointerMove);
+        window.addEventListener("pointerup", this.handlePointerUp, { once: true });
+      };
+      this.handlePointerMove = (e) => {
+        if (!this.dragging) {
+          return;
+        }
+        this.eventBus.emit("drag", {
+          x: e.clientX - this.dragOffsetX,
+          y: e.clientY - this.dragOffsetY
+        });
+      };
+      this.handlePointerUp = () => {
+        this.dragging = false;
+        window.removeEventListener("pointermove", this.handlePointerMove);
+      };
       this.handleResize = () => {
         const viewport = this.getViewport();
         this.eventBus.emit("resize", viewport);
@@ -532,6 +718,10 @@ var TinyMascot = (() => {
       this.canvas.addEventListener("click", this.handleClick);
       this.canvas.addEventListener("mouseenter", this.handleEnter);
       this.canvas.addEventListener("mouseleave", this.handleLeave);
+      if (this.draggable) {
+        this.canvas.addEventListener("pointerdown", this.handlePointerDown);
+        this.canvas.style.cursor = "grab";
+      }
       window.addEventListener("resize", this.handleResize);
       window.addEventListener("keydown", this.handleKey);
       this.rafId = window.requestAnimationFrame(this.loop);
@@ -560,6 +750,9 @@ var TinyMascot = (() => {
       this.canvas.removeEventListener("click", this.handleClick);
       this.canvas.removeEventListener("mouseenter", this.handleEnter);
       this.canvas.removeEventListener("mouseleave", this.handleLeave);
+      this.canvas.removeEventListener("pointerdown", this.handlePointerDown);
+      window.removeEventListener("pointermove", this.handlePointerMove);
+      window.removeEventListener("pointerup", this.handlePointerUp);
       window.removeEventListener("resize", this.handleResize);
       window.removeEventListener("keydown", this.handleKey);
       this.tickCb = null;
@@ -575,9 +768,11 @@ var TinyMascot = (() => {
     const zIndex = config.zIndex ?? DEFAULT_Z_INDEX;
     const overlay = new OverlayRoot(zIndex);
     overlay.setCanvasSize(size);
+    overlay.canvas.setAttribute("role", "img");
+    overlay.canvas.setAttribute("aria-label", config.ariaLabel ?? "Mascot");
     const events = new EventBus();
     const renderer = new CanvasRenderer(overlay.canvas);
-    const runtime = new BrowserRuntime(overlay.canvas, events);
+    const runtime = new BrowserRuntime(overlay.canvas, events, config.draggable ?? false);
     const asset = config.asset ?? await new SpriteLoader().loadAsset(config.spritesheet, config.metadata);
     const engine = new MascotEngine({
       renderer,
@@ -589,6 +784,9 @@ var TinyMascot = (() => {
       position: config.position,
       offsetX: config.offsetX,
       offsetY: config.offsetY
+    });
+    events.subscribe("say", ({ text, durationMs }) => {
+      overlay.showBubble(text, durationMs);
     });
     const originalStop = engine.stop.bind(engine);
     engine.stop = () => {
@@ -662,7 +860,7 @@ var TinyMascot = (() => {
       this.mountToken = null;
     }
     static get observedAttributes() {
-      return ["spritesheet", "metadata", "size", "fps", "position", "offset-x", "offset-y", "z-index"];
+      return ["spritesheet", "metadata", "size", "fps", "position", "offset-x", "offset-y", "z-index", "aria-label", "draggable"];
     }
     connectedCallback() {
       this.mountEngine();
@@ -686,7 +884,9 @@ var TinyMascot = (() => {
         position: this.getAttribute("position") ?? void 0,
         offsetX: this.toNumber(this.getAttribute("offset-x")),
         offsetY: this.toNumber(this.getAttribute("offset-y")),
-        zIndex: this.toNumber(this.getAttribute("z-index"))
+        zIndex: this.toNumber(this.getAttribute("z-index")),
+        ariaLabel: this.getAttribute("aria-label") ?? void 0,
+        draggable: this.hasAttribute("draggable")
       };
       if (!spritesheet || !metadata) {
         config.asset = createDefaultMascotAsset();

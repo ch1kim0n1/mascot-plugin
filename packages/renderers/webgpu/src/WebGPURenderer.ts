@@ -178,8 +178,11 @@ export class WebGPURenderer implements Renderer {
   }
 }
 
+// Premultiplied-alpha blend. The fragment shader premultiplies the sampled
+// straight-alpha color (rgb * a) so the canvas — configured with
+// alphaMode: 'premultiplied' — composites it correctly over the page.
 const PREMULTIPLIED_BLEND: GPUBlendState = {
-  color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+  color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
   alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' }
 };
 
@@ -212,6 +215,9 @@ fn vs_main(@builtin(vertex_index) vi: u32) -> VsOut {
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
   let uv = u.u_offset_scale.xy + in.uv * u.u_offset_scale.zw;
-  return textureSample(tex, samp, uv);
+  let c = textureSample(tex, samp, uv);
+  // Premultiply so the premultiplied-alpha blend + canvas alphaMode composite
+  // transparent sprite pixels correctly over the host page.
+  return vec4(c.rgb * c.a, c.a);
 }
 `;
