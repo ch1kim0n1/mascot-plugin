@@ -70,9 +70,11 @@ Everything talks over a typed **EventBus**.
 | `mascot-plugin/asset-pipeline` | `AssetLoader`, `AnimationRegistry`, `PackManager` |
 | `mascot-plugin/packer` | `packFrames`, Aseprite/GIF/PNG importers, `mascot-pack` CLI |
 | `mascot-plugin/manager` | `MascotManager` — spawn/control multiple mascots |
+| `mascot-plugin/unity` | `UnityRenderer` + `UnityRuntime` (JSON-over-stdio bridge) |
+| `mascot-plugin/react-native` | `ReactNativeRuntime` + `SkiaRenderer` |
 
 Framework/desktop deps (`react`, `vue`, `solid-js`, `preact`, `svelte`, `electron`,
-`@tauri-apps/api`) are **optional peers** — install only what you use.
+`@tauri-apps/api`, `react-native`, `@shopify/react-native-skia`) are **optional peers** — install only what you use.
 
 ## Installation
 
@@ -260,6 +262,47 @@ The bundled `cutie.json` pack animates in the terminal corner (idle loop, reacts
 │ (-_-)   idle frame 1 (blink)  │
 │ (^o^)   react frame (keypress)│
 └──────────────────────────────┘
+```
+
+## Unity / game-engine bridge
+
+`mascot-plugin/unity` runs the mascot engine as a subprocess that streams
+frame records as newline-delimited JSON on stdout and reads input commands
+from stdin. The host game engine (Unity, Godot, Unreal, …) owns the texture
+and renders each frame record in its own scene.
+
+```sh
+node -e "require('mascot-plugin/unity').createUnityMascot({ metadata, viewport:{width:1920,height:1080}, fps:12 }).start()"
+```
+
+Protocol:
+- **stdout** → `{"type":"frame","frameIndex":0,"state":"idle","x":..,"y":..,"size":..}`
+- **stdin** ← `{"type":"click","x":..,"y":..}` | `{"type":"keypress","key":" "}` |
+  `{"type":"drag","x":..,"y":..}` | `{"type":"resize","width":..,"height":..}` |
+  `{"type":"quit"}`
+
+## React Native bridge
+
+`mascot-plugin/react-native` provides a `ReactNativeRuntime` (viewport from
+`Dimensions`, loop via scheduler) and a `SkiaRenderer` that draws sprite
+frames onto a `@shopify/react-native-skia` canvas. Wire touch handlers in
+your component to emit `click`/`drag` on the shared event bus.
+
+```tsx
+import { useCanvasRef } from '@shopify/react-native-skia';
+import { MascotEngine, EventBus } from 'mascot-plugin';
+import { ReactNativeRuntime, SkiaRenderer, dimensionsViewportSource, intervalScheduler } from 'mascot-plugin/react-native';
+
+const ref = useCanvasRef();
+const events = new EventBus();
+const data = await fetch(spritesheetUrl).then(r => r.arrayBuffer());
+const image = Skia.Image.makeImageFromEncoded(new Uint8Array(data));
+const engine = new MascotEngine({
+  renderer: new SkiaRenderer(ref.current, image),
+  runtime: new ReactNativeRuntime(events, dimensionsViewportSource(), intervalScheduler()),
+  events, asset: { kind: 'spritesheet', metadata, image }, size: 64, fps: 12
+});
+await engine.start();
 ```
 
 ## Speech bubbles
