@@ -15,18 +15,48 @@
     "type": "git",
     "url": "git+https://github.com/ch1kim0n1/mascot-plugin.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "mascot",
+    "overlay",
+    "sprite",
+    "animation",
+    "character",
+    "pet",
+    "canvas",
+    "terminal",
+    "electron",
+    "tauri",
+    "react",
+    "vue",
+    "svelte",
+    "solid",
+    "preact",
+    "web-component",
+    "game",
+    "engine"
+  ],
+  "author": "ch1kim0n1",
   "license": "ISC",
   "type": "module",
+  "sideEffects": [
+    "**/*.css",
+    "./packages/web-component/src/index.ts"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "bugs": {
     "url": "https://github.com/ch1kim0n1/mascot-plugin/issues"
   },
   "homepage": "https://github.com/ch1kim0n1/mascot-plugin#readme",
-  "dependencies": {
-    "react": "^19.2.7"
-  },
+  "dependencies": {},
   "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
     "vue": "^3.0.0",
     "solid-js": "^1.0.0",
     "preact": "^10.0.0",
@@ -60,6 +90,7 @@
     "vue": "^3.0.0"
   },
   "exports": {
+    "./package.json": "./package.json",
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
