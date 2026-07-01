@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { OverlayRoot } from '../overlay/OverlayRoot';
 
 describe('OverlayRoot', () => {
@@ -11,5 +11,28 @@ describe('OverlayRoot', () => {
     expect(overlay.canvas.style.pointerEvents).toBe('auto');
 
     overlay.destroy();
+  });
+
+  it('shows and hides a speech bubble', () => {
+    vi.useFakeTimers();
+    const overlay = new OverlayRoot(999999);
+    overlay.setCanvasSize(32);
+    overlay.setCanvasPosition(100, 200);
+
+    overlay.showBubble('Hello!', 1000);
+    const shown = [...overlay.shadowRoot.children].find(
+      (el) => el !== overlay.canvas && (el as HTMLElement).style.display === 'block'
+    ) as HTMLDivElement | undefined;
+    expect(shown).toBeTruthy();
+    expect(shown!.textContent).toBe('Hello!');
+
+    vi.advanceTimersByTime(1000);
+    const afterHide = [...overlay.shadowRoot.children].find(
+      (el) => el !== overlay.canvas && (el as HTMLElement).style.display === 'block'
+    );
+    expect(afterHide).toBeUndefined();
+
+    overlay.destroy();
+    vi.useRealTimers();
   });
 });

@@ -2,6 +2,8 @@ export class OverlayRoot {
   readonly root: HTMLDivElement;
   readonly shadowRoot: ShadowRoot;
   readonly canvas: HTMLCanvasElement;
+  private readonly bubble: HTMLDivElement;
+  private bubbleTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(zIndex: number) {
     this.root = document.createElement('div');
@@ -19,7 +21,24 @@ export class OverlayRoot {
     this.canvas.style.pointerEvents = 'auto';
     this.canvas.style.position = 'absolute';
 
+    // Speech bubble (hidden until showBubble is called).
+    this.bubble = document.createElement('div');
+    this.bubble.style.position = 'absolute';
+    this.bubble.style.pointerEvents = 'none';
+    this.bubble.style.maxWidth = '220px';
+    this.bubble.style.padding = '6px 10px';
+    this.bubble.style.background = '#ffffff';
+    this.bubble.style.color = '#0d1117';
+    this.bubble.style.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    this.bubble.style.borderRadius = '10px';
+    this.bubble.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+    this.bubble.style.whiteSpace = 'pre-wrap';
+    this.bubble.style.wordBreak = 'break-word';
+    this.bubble.style.display = 'none';
+    this.bubble.style.transform = 'translateX(-50%)';
+
     this.shadowRoot.appendChild(this.canvas);
+    this.shadowRoot.appendChild(this.bubble);
     document.body.appendChild(this.root);
   }
 
@@ -33,9 +52,41 @@ export class OverlayRoot {
   setCanvasPosition(x: number, y: number): void {
     this.canvas.style.left = `${x}px`;
     this.canvas.style.top = `${y}px`;
+    // keep the bubble anchored above the canvas
+    this.bubble.style.left = `${x + this.canvas.width / 2}px`;
+    this.bubble.style.top = `${y - 6}px`;
+    this.bubble.style.marginBottom = '0';
+    // reposition via transform so the bubble sits just above the mascot
+    const bubbleHeight = this.bubble.offsetHeight || 0;
+    this.bubble.style.transform = `translate(-50%, -${bubbleHeight + 8}px)`;
+  }
+
+  /** Show a speech bubble with `text` for `durationMs` (default 3s). */
+  showBubble(text: string, durationMs = 3000): void {
+    this.bubble.textContent = text;
+    this.bubble.style.display = 'block';
+    if (this.bubbleTimer) {
+      clearTimeout(this.bubbleTimer);
+    }
+    this.bubbleTimer = setTimeout(() => this.hideBubble(), durationMs);
+    // re-anchor now that it has dimensions
+    const left = parseFloat(this.canvas.style.left || '0');
+    const top = parseFloat(this.canvas.style.top || '0');
+    this.setCanvasPosition(left, top);
+  }
+
+  hideBubble(): void {
+    this.bubble.style.display = 'none';
+    if (this.bubbleTimer) {
+      clearTimeout(this.bubbleTimer);
+      this.bubbleTimer = null;
+    }
   }
 
   destroy(): void {
+    if (this.bubbleTimer) {
+      clearTimeout(this.bubbleTimer);
+    }
     this.root.remove();
   }
 }

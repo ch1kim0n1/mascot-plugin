@@ -147,6 +147,15 @@ export class MascotEngine {
   }
 
   /**
+   * Show a speech bubble with `text` near the mascot for `durationMs`
+   * (default 3000). Emits a `say` event that a browser overlay renders; on
+   * non-visual platforms the event is still emitted for external handling.
+   */
+  say(text: string, durationMs = 3000): void {
+    this.events.emit('say', { text, durationMs });
+  }
+
+  /**
    * Move the mascot to absolute viewport coordinates `(x, y)` and stop
    * auto-positioning from the preset until {@link releasePosition} is called.
    * Used by drag-to-move. Redraws immediately for responsive feedback.

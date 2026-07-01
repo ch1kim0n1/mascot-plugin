@@ -52,6 +52,11 @@ export async function createBrowserMascot(config: MascotConfig): Promise<MascotE
     offsetY: config.offsetY
   });
 
+  // Render speech bubbles on the overlay when the engine `say`s something.
+  events.subscribe('say', ({ text, durationMs }) => {
+    overlay.showBubble(text, durationMs);
+  });
+
   // Tear the overlay down when the engine stops.
   const originalStop = engine.stop.bind(engine);
   engine.stop = () => {

@@ -262,6 +262,20 @@ The bundled `cutie.json` pack animates in the terminal corner (idle loop, reacts
 └──────────────────────────────┘
 ```
 
+## Speech bubbles
+
+Call `engine.say(text, durationMs?)` to show a speech bubble anchored above
+the mascot. The engine emits a `say` event; the browser preset renders it on
+the overlay (auto-hidden after `durationMs`, default 3000). On non-visual
+platforms the event is still emitted for external handling.
+
+```ts
+const mascot = await createBrowserMascot(config);
+await mascot.start();
+mascot.say('Hello!');              // shows for 3s
+mascot.say('Welcome back', 5000);  // shows for 5s
+```
+
 ## Drag-to-move
 
 Set `draggable: true` (or the `draggable` attribute on `<tiny-mascot>`) to let

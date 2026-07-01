@@ -67,4 +67,19 @@ describe('MascotEngine drag/teleport', () => {
 
     engine.stop();
   });
+
+  it('say() emits a say event with text and duration', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }));
+    const { renderer, runtime } = fakes();
+    const events = new EventBus();
+    const engine = new MascotEngine({ renderer, runtime, events, asset, fps: 10 });
+    await engine.start();
+
+    const seen: Array<{ text: string; durationMs?: number }> = [];
+    events.subscribe('say', (p) => seen.push(p));
+    engine.say('Hi there', 1500);
+    expect(seen).toEqual([{ text: 'Hi there', durationMs: 1500 }]);
+
+    engine.stop();
+  });
 });
