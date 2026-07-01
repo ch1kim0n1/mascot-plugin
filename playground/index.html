@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tiny Mascot — Playground</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0d1117; color: #c9d1d9; min-height: 100vh; padding: 24px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 {
+    font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4px;
+    background: linear-gradient(135deg, #6C9BD2 0%, #a78bfa 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  p.sub { color: #6e7681; font-size: 0.9rem; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .panel {
+    background: #161b22; border: 1px solid #21262d; border-radius: 12px; padding: 18px;
+  }
+  .panel h2 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6e7681; margin-bottom: 14px; }
+  label { display: block; font-size: 0.78rem; color: #8b949e; margin: 12px 0 4px; }
+  input[type=text], input[type=url], select {
+    width: 100%; background: #0d1117; border: 1px solid #21262d; color: #c9d1d9;
+    border-radius: 6px; padding: 8px 10px; font-size: 0.82rem; font-family: inherit;
+  }
+  input[type=range] { width: 100%; accent-color: #6C9BD2; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row input[type=range] { flex: 1; }
+  .val { font-family: monospace; font-size: 0.78rem; color: #6C9BD2; min-width: 34px; text-align: right; }
+  button {
+    background: #238636; border: none; color: #fff; border-radius: 6px; padding: 8px 14px;
+    font-size: 0.82rem; cursor: pointer; font-weight: 600;
+  }
+  button.secondary { background: #21262d; }
+  button:hover { filter: brightness(1.1); }
+  .btns { display: flex; gap: 8px; margin-top: 16px; }
+  .preview {
+    position: relative; min-height: 420px; border: 1px dashed #21262d; border-radius: 12px;
+    background:
+      linear-gradient(#161b22, #161b22),
+      repeating-linear-gradient(45deg, #0d1117 0 12px, #11161d 12px 24px);
+    background-blend-mode: normal;
+    overflow: hidden;
+  }
+  .preview .hint { position: absolute; top: 12px; left: 14px; font-size: 0.75rem; color: #484f58; }
+  pre {
+    background: #0d1117; border: 1px solid #21262d; border-radius: 8px; padding: 14px;
+    font-size: 0.78rem; line-height: 1.6; overflow-x: auto; margin-top: 12px;
+    font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+  }
+  .tabs { display: flex; gap: 4px; margin-top: 14px; }
+  .tab { padding: 6px 12px; font-size: 0.75rem; border-radius: 6px 6px 0 0; cursor: pointer; background: #161b22; border: 1px solid #21262d; border-bottom: none; color: #8b949e; }
+  .tab.active { background: #0d1117; color: #c9d1d9; }
+  .code-wrap { background: #0d1117; border: 1px solid #21262d; border-radius: 0 8px 8px 8px; }
+  .tok-key { color: #6C9BD2; } .tok-str { color: #a5d6a7; } .tok-num { color: #ffb74d; } .tok-tag { color: #f97583; } .tok-attr { color: #6C9BD2; } .tok-comment { color: #484f58; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #238636; color: #fff; padding: 8px 16px; border-radius: 6px; font-size: 0.82rem; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Tiny Mascot Playground</h1>
+  <p class="sub">Tune a mascot live, then copy the code for your app. The mascot renders in the box below — click it to react.</p>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Assets</h2>
+      <label>Spritesheet URL</label>
+      <input type="url" id="sheet" placeholder="https://…/mascot.png">
+      <label>Metadata URL</label>
+      <input type="url" id="meta" placeholder="https://…/metadata.json">
+      <div class="btns">
+        <button class="secondary" id="use-default">Use default mascot</button>
+      </div>
+
+      <h2 style="margin-top:20px">Layout</h2>
+      <label>Size <span class="val" id="size-v">64</span>px</label>
+      <input type="range" id="size" min="16" max="256" value="64">
+      <label>FPS <span class="val" id="fps-v">12</span></label>
+      <input type="range" id="fps" min="1" max="30" value="12">
+      <label>Position</label>
+      <select id="position">
+        <option>top-left</option><option>top-right</option>
+        <option>bottom-left</option><option selected>bottom-right</option>
+        <option>center</option>
+      </select>
+      <label>Offset X <span class="val" id="ox-v">20</span>px</label>
+      <input type="range" id="ox" min="0" max="200" value="20">
+      <label>Offset Y <span class="val" id="oy-v">20</span>px</label>
+      <input type="range" id="oy" min="0" max="200" value="20">
+      <div class="btns">
+        <button id="apply">Apply</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="preview" id="preview">
+        <span class="hint">live preview (mascot is anchored to this box's corner)</span>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" data-tab="html">HTML</div>
+        <div class="tab" data-tab="react">React</div>
+      </div>
+      <div class="code-wrap">
+        <pre id="code"></pre>
+      </div>
+      <div class="btns">
+        <button class="secondary" id="copy">Copy code</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast">copied</div>
+
+<!-- Engine as a classic global so the page works on file:// and any static host. -->
+<script src="../example/tiny-mascot.global.js"></script>
+<script>
+(function () {
+  const { createBrowserMascot } = window.TinyMascot;
+  const $ = (id) => document.getElementById(id);
+  let engine = null;
+
+  const state = { sheet: '', meta: '', size: 64, fps: 12, position: 'bottom-right', ox: 20, oy: 20 };
+
+  // bind sliders
+  [['size','size-v'],['fps','fps-v'],['ox','ox-v'],['oy','oy-v']].forEach(([id, vid]) => {
+    $(id).addEventListener('input', (e) => { $(vid).textContent = e.target.value; state[id === 'ox' ? 'ox' : id === 'oy' ? 'oy' : id] = +e.target.value; });
+  });
+  $('position').addEventListener('change', (e) => { state.position = e.target.value; });
+  $('sheet').addEventListener('input', (e) => { state.sheet = e.target.value; });
+  $('meta').addEventListener('input', (e) => { state.meta = e.target.value; });
+
+  $('use-default').addEventListener('click', () => {
+    state.sheet = ''; state.meta = '';
+    $('sheet').value = ''; $('meta').value = '';
+    apply();
+  });
+
+  // The mascot overlay is fixed to the viewport; for a contained preview we
+  // temporarily let it render viewport-anchored (the playground shows the real
+  // integration behavior). Click the mascot to trigger react.
+  async function apply() {
+    if (engine) { engine.stop(); engine = null; }
+    const cfg = {
+      size: state.size, fps: state.fps, position: state.position,
+      offsetX: state.ox, offsetY: state.oy
+    };
+    if (state.sheet && state.meta) { cfg.spritesheet = state.sheet; cfg.metadata = state.meta; }
+    else { cfg.asset = window.TinyMascot.createDefaultMascotAsset ? window.TinyMascot.createDefaultMascotAsset() : undefined; }
+    try {
+      engine = await createBrowserMascot(cfg);
+      await engine.start();
+    } catch (err) {
+      console.error(err);
+    }
+    renderCode();
+  }
+
+  function renderCode() {
+    const tab = document.querySelector('.tab.active').dataset.tab;
+    const s = state;
+    if (s.sheet && s.meta) {
+      const html = `<span class="tok-comment">&lt;!-- drop in any page --&gt;</span>\n<span class="tok-tag">&lt;script</span> <span class="tok-attr">type</span>=<span class="tok-str">"module"</span> <span class="tok-attr">src</span>=<span class="tok-str">"https://esm.sh/mascot-plugin/auto-init"</span><span class="tok-tag">&gt;&lt;/script&gt;</span>\n<span class="tok-tag">&lt;tiny-mascot</span>\n  <span class="tok-attr">spritesheet</span>=<span class="tok-str">"${s.sheet}"</span>\n  <span class="tok-attr">metadata</span>=<span class="tok-str">"${s.meta}"</span>\n  <span class="tok-attr">size</span>=<span class="tok-str">"${s.size}"</span>\n  <span class="tok-attr">fps</span>=<span class="tok-str">"${s.fps}"</span>\n  <span class="tok-attr">position</span>=<span class="tok-str">"${s.position}"</span>\n  <span class="tok-attr">offset-x</span>=<span class="tok-str">"${s.ox}"</span>\n  <span class="tok-attr">offset-y</span>=<span class="tok-str">"${s.oy}"</span><span class="tok-tag">&gt;&lt;/tiny-mascot&gt;</span>`;
+      const react = `<span class="tok-key">import</span> { Mascot } <span class="tok-key">from</span> <span class="tok-str">'mascot-plugin/react'</span>;\n\n&lt;<span class="tok-tag">Mascot</span>\n  <span class="tok-attr">spritesheet</span>=<span class="tok-str">"${s.sheet}"</span>\n  <span class="tok-attr">metadata</span>=<span class="tok-str">"${s.meta}"</span>\n  <span class="tok-attr">size</span>={<span class="tok-num">${s.size}</span>}\n  <span class="tok-attr">fps</span>={<span class="tok-num">${s.fps}</span>}\n  <span class="tok-attr">position</span>=<span class="tok-str">"${s.position}"</span>\n  <span class="tok-attr">offsetX</span>={<span class="tok-num">${s.ox}</span>}\n  <span class="tok-attr">offsetY</span>={<span class="tok-num">${s.oy}</span>}\n/&gt;`;
+      $('code').innerHTML = tab === 'html' ? html : react;
+    } else {
+      const html = `<span class="tok-comment">&lt;!-- zero-config default mascot --&gt;</span>\n<span class="tok-tag">&lt;script</span> <span class="tok-attr">type</span>=<span class="tok-str">"module"</span> <span class="tok-attr">src</span>=<span class="tok-str">"https://esm.sh/mascot-plugin/auto-init"</span><span class="tok-tag">&gt;&lt;/script&gt;</span>\n<span class="tok-tag">&lt;tiny-mascot</span>\n  <span class="tok-attr">size</span>=<span class="tok-str">"${s.size}"</span>\n  <span class="tok-attr">fps</span>=<span class="tok-str">"${s.fps}"</span>\n  <span class="tok-attr">position</span>=<span class="tok-str">"${s.position}"</span>\n  <span class="tok-attr">offset-x</span>=<span class="tok-str">"${s.ox}"</span>\n  <span class="tok-attr">offset-y</span>=<span class="tok-str">"${s.oy}"</span><span class="tok-tag">&gt;&lt;/tiny-mascot&gt;</span>`;
+      const react = `<span class="tok-key">import</span> { Mascot } <span class="tok-key">from</span> <span class="tok-str">'mascot-plugin/react'</span>;\n\n&lt;<span class="tok-tag">Mascot</span>\n  <span class="tok-attr">size</span>={<span class="tok-num">${s.size}</span>}\n  <span class="tok-attr">fps</span>={<span class="tok-num">${s.fps}</span>}\n  <span class="tok-attr">position</span>=<span class="tok-str">"${s.position}"</span>\n  <span class="tok-attr">offsetX</span>={<span class="tok-num">${s.ox}</span>}\n  <span class="tok-attr">offsetY</span>={<span class="tok-num">${s.oy}</span>}\n/&gt;`;
+      $('code').innerHTML = tab === 'html' ? html : react;
+    }
+  }
+
+  document.querySelectorAll('.tab').forEach((t) => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach((x) => x.classList.remove('active'));
+      t.classList.add('active');
+      renderCode();
+    });
+  });
+
+  $('copy').addEventListener('click', () => {
+    navigator.clipboard.writeText($('code').textContent).then(() => {
+      const toast = $('toast'); toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1200);
+    });
+  });
+
+  $('apply').addEventListener('click', apply);
+  apply();
+})();
+</script>
+</body>
+</html>

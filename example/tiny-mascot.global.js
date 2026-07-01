@@ -18,22 +18,12 @@ var TinyMascot = (() => {
   };
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // packages/core/src/index.ts
+  // packages/auto-init/src/index.ts
   var index_exports = {};
   __export(index_exports, {
-    AnimationController: () => AnimationController,
-    BrowserRuntime: () => BrowserRuntime,
-    CanvasRenderer: () => CanvasRenderer,
-    EventBus: () => EventBus,
-    FrameTimer: () => FrameTimer,
-    MascotEngine: () => MascotEngine,
-    MascotEntity: () => MascotEntity,
-    OverlayRoot: () => OverlayRoot,
-    PluginRegistry: () => PluginRegistry,
-    PositionManager: () => PositionManager,
-    SpriteLoader: () => SpriteLoader,
-    StateMachine: () => StateMachine,
-    createBrowserMascot: () => createBrowserMascot
+    TinyMascotElement: () => TinyMascotElement,
+    createBrowserMascot: () => createBrowserMascot,
+    createDefaultMascotAsset: () => createDefaultMascotAsset
   });
 
   // packages/core/src/animation/AnimationController.ts
@@ -588,8 +578,7 @@ var TinyMascot = (() => {
     const events = new EventBus();
     const renderer = new CanvasRenderer(overlay.canvas);
     const runtime = new BrowserRuntime(overlay.canvas, events);
-    const loader = new SpriteLoader();
-    const asset = await loader.loadAsset(config.spritesheet, config.metadata);
+    const asset = config.asset ?? await new SpriteLoader().loadAsset(config.spritesheet, config.metadata);
     const engine = new MascotEngine({
       renderer,
       runtime,
@@ -609,17 +598,134 @@ var TinyMascot = (() => {
     return engine;
   }
 
-  // packages/core/src/mascot/MascotEntity.ts
-  var MascotEntity = class {
-    constructor(x, y, size) {
-      this.x = x;
-      this.y = y;
-      this.size = size;
-    }
-    setPosition(x, y) {
-      this.x = x;
-      this.y = y;
+  // packages/web-component/src/defaultMascot.ts
+  var FRAME = 32;
+  var FRAMES = 4;
+  var DEFAULT_METADATA = {
+    frameWidth: FRAME,
+    frameHeight: FRAME,
+    animations: {
+      idle: { frames: [0, 1, 0, 1], loop: true },
+      react: { frames: [2, 3, 2, 3], loop: false, next: "idle" }
     }
   };
+  function drawBlob(ctx, x, eyesClosed, wave) {
+    ctx.fillStyle = "#6C9BD2";
+    ctx.beginPath();
+    ctx.arc(x + 16, 18, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + 8, 10);
+    ctx.lineTo(x + 11, 4);
+    ctx.lineTo(x + 14, 10);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + 18, 10);
+    ctx.lineTo(x + 21, 4);
+    ctx.lineTo(x + 24, 10);
+    ctx.fill();
+    ctx.fillStyle = "#0d1117";
+    if (eyesClosed) {
+      ctx.fillRect(x + 11, 16, 3, 1);
+      ctx.fillRect(x + 18, 16, 3, 1);
+    } else {
+      ctx.fillRect(x + 12, 15, 2, 3);
+      ctx.fillRect(x + 19, 15, 2, 3);
+    }
+    ctx.fillRect(x + 14, 21, 5, 1);
+    if (wave > 0) {
+      ctx.fillStyle = "#6C9BD2";
+      ctx.fillRect(x + 26, 12 + wave, 3, 6);
+    }
+  }
+  function createDefaultMascotAsset() {
+    const sheet = document.createElement("canvas");
+    sheet.width = FRAME * FRAMES;
+    sheet.height = FRAME;
+    const ctx = sheet.getContext("2d");
+    if (!ctx) {
+      throw new Error("2D canvas context is required to build the default mascot");
+    }
+    ctx.imageSmoothingEnabled = false;
+    drawBlob(ctx, 0 * FRAME, false, 0);
+    drawBlob(ctx, 1 * FRAME, true, 0);
+    drawBlob(ctx, 2 * FRAME, false, -4);
+    drawBlob(ctx, 3 * FRAME, false, 2);
+    return { kind: "spritesheet", metadata: DEFAULT_METADATA, image: sheet };
+  }
+
+  // packages/web-component/src/TinyMascotElement.ts
+  var TinyMascotElement = class extends HTMLElement {
+    constructor() {
+      super(...arguments);
+      this.engine = null;
+      this.mountToken = null;
+    }
+    static get observedAttributes() {
+      return ["spritesheet", "metadata", "size", "fps", "position", "offset-x", "offset-y", "z-index"];
+    }
+    connectedCallback() {
+      this.mountEngine();
+    }
+    disconnectedCallback() {
+      this.unmountEngine();
+    }
+    attributeChangedCallback() {
+      if (!this.isConnected) {
+        return;
+      }
+      this.unmountEngine();
+      this.mountEngine();
+    }
+    mountEngine() {
+      const spritesheet = this.getAttribute("spritesheet");
+      const metadata = this.getAttribute("metadata");
+      const config = {
+        size: this.toNumber(this.getAttribute("size")),
+        fps: this.toNumber(this.getAttribute("fps")),
+        position: this.getAttribute("position") ?? void 0,
+        offsetX: this.toNumber(this.getAttribute("offset-x")),
+        offsetY: this.toNumber(this.getAttribute("offset-y")),
+        zIndex: this.toNumber(this.getAttribute("z-index"))
+      };
+      if (!spritesheet || !metadata) {
+        config.asset = createDefaultMascotAsset();
+      } else {
+        config.spritesheet = spritesheet;
+        config.metadata = metadata;
+      }
+      this.mountToken = {};
+      const token = this.mountToken;
+      void createBrowserMascot(config).then((engine) => {
+        if (this.mountToken !== token) {
+          engine.stop();
+          return;
+        }
+        this.engine = engine;
+        void engine.start();
+      });
+    }
+    unmountEngine() {
+      this.mountToken = null;
+      this.engine?.stop();
+      this.engine = null;
+    }
+    toNumber(value) {
+      if (value == null) {
+        return void 0;
+      }
+      const parsed = Number.parseInt(value, 10);
+      return Number.isNaN(parsed) ? void 0 : parsed;
+    }
+  };
+  if (!customElements.get("tiny-mascot")) {
+    customElements.define("tiny-mascot", TinyMascotElement);
+  }
+
+  // packages/auto-init/src/index.ts
+  var GLOBAL = globalThis;
+  if (!GLOBAL.TinyMascot) {
+    GLOBAL.TinyMascot = { createBrowserMascot, createDefaultMascotAsset, TinyMascotElement };
+  }
   return __toCommonJS(index_exports);
 })();

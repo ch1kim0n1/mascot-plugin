@@ -79,6 +79,11 @@ Framework/desktop deps (`react`, `vue`, `solid-js`, `preact`, `svelte`, `electro
 npm install mascot-plugin
 ```
 
+> Try it live: the **[playground](./playground/index.html)** lets you tune a
+> mascot in the browser and copy the integration code for your app. (Open it
+> directly or via `python3 -m http.server 8077` then visit
+> `http://localhost:8077/playground/index.html`.)
+
 ## Zero-config (no assets, no JS)
 
 The web component ships with a built-in default mascot, so you can drop one
