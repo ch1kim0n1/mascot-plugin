@@ -769,31 +769,36 @@ var TinyMascot = (() => {
     const size = config.size ?? DEFAULT_SIZE;
     const zIndex = config.zIndex ?? DEFAULT_Z_INDEX;
     const overlay = new OverlayRoot(zIndex);
-    overlay.setCanvasSize(size);
-    overlay.canvas.setAttribute("role", "img");
-    overlay.canvas.setAttribute("aria-label", config.ariaLabel ?? "Mascot");
-    const events = new EventBus();
-    const renderer = new CanvasRenderer(overlay.canvas);
-    const runtime = new BrowserRuntime(overlay.canvas, events, config.draggable ?? false);
-    const asset = config.asset ?? await new SpriteLoader().loadAsset(config.spritesheet, config.metadata);
-    const engine = new MascotEngine({
-      renderer,
-      runtime,
-      events,
-      asset,
-      size,
-      fps: config.fps,
-      position: config.position,
-      offsetX: config.offsetX,
-      offsetY: config.offsetY,
-      // Tear the overlay down when the engine stops — the supported lifecycle
-      // hook, instead of overriding stop() on the instance.
-      onDestroy: () => overlay.destroy()
-    });
-    events.subscribe("say", ({ text, durationMs }) => {
-      overlay.showBubble(text, durationMs);
-    });
-    return engine;
+    try {
+      overlay.setCanvasSize(size);
+      overlay.canvas.setAttribute("role", "img");
+      overlay.canvas.setAttribute("aria-label", config.ariaLabel ?? "Mascot");
+      const events = new EventBus();
+      const renderer = new CanvasRenderer(overlay.canvas);
+      const runtime = new BrowserRuntime(overlay.canvas, events, config.draggable ?? false);
+      const asset = config.asset ?? await new SpriteLoader().loadAsset(config.spritesheet, config.metadata);
+      const engine = new MascotEngine({
+        renderer,
+        runtime,
+        events,
+        asset,
+        size,
+        fps: config.fps,
+        position: config.position,
+        offsetX: config.offsetX,
+        offsetY: config.offsetY,
+        // Tear the overlay down when the engine stops — the supported lifecycle
+        // hook, instead of overriding stop() on the instance.
+        onDestroy: () => overlay.destroy()
+      });
+      events.subscribe("say", ({ text, durationMs }) => {
+        overlay.showBubble(text, durationMs);
+      });
+      return engine;
+    } catch (err) {
+      overlay.destroy();
+      throw err;
+    }
   }
 
   // packages/web-component/src/defaultMascot.ts

@@ -29,7 +29,14 @@ export class MascotManager {
       throw new Error(`MascotManager: a mascot with id "${id}" already exists`);
     }
     const engine = await createBrowserMascot(config);
-    await engine.start();
+    try {
+      await engine.start();
+    } catch (err) {
+      // start() failed — tear down the engine (and its overlay) so we don't
+      // leak a half-initialized mascot, then re-throw so the caller knows.
+      engine.stop();
+      throw err;
+    }
     this.mascots.set(id, { id, engine, config });
     return engine;
   }

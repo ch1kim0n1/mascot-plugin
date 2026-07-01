@@ -24,41 +24,48 @@ export async function createBrowserMascot(config: MascotConfig): Promise<MascotE
   const zIndex = config.zIndex ?? DEFAULT_Z_INDEX;
 
   const overlay = new OverlayRoot(zIndex);
-  overlay.setCanvasSize(size);
+  try {
+    overlay.setCanvasSize(size);
 
-  // Accessibility: expose the canvas as a labelled image.
-  overlay.canvas.setAttribute('role', 'img');
-  overlay.canvas.setAttribute('aria-label', config.ariaLabel ?? 'Mascot');
+    // Accessibility: expose the canvas as a labelled image.
+    overlay.canvas.setAttribute('role', 'img');
+    overlay.canvas.setAttribute('aria-label', config.ariaLabel ?? 'Mascot');
 
-  const events = new EventBus();
-  const renderer = new CanvasRenderer(overlay.canvas);
-  const runtime = new BrowserRuntime(overlay.canvas, events, config.draggable ?? false);
+    const events = new EventBus();
+    const renderer = new CanvasRenderer(overlay.canvas);
+    const runtime = new BrowserRuntime(overlay.canvas, events, config.draggable ?? false);
 
-  // Use a pre-loaded asset when supplied (e.g. the built-in default mascot);
-  // otherwise fetch spritesheet + metadata from the configured URLs.
-  const asset =
-    config.asset ??
-    (await new SpriteLoader().loadAsset(config.spritesheet!, config.metadata!));
+    // Use a pre-loaded asset when supplied (e.g. the built-in default mascot);
+    // otherwise fetch spritesheet + metadata from the configured URLs.
+    const asset =
+      config.asset ??
+      (await new SpriteLoader().loadAsset(config.spritesheet!, config.metadata!));
 
-  const engine = new MascotEngine({
-    renderer,
-    runtime,
-    events,
-    asset,
-    size,
-    fps: config.fps,
-    position: config.position,
-    offsetX: config.offsetX,
-    offsetY: config.offsetY,
-    // Tear the overlay down when the engine stops — the supported lifecycle
-    // hook, instead of overriding stop() on the instance.
-    onDestroy: () => overlay.destroy()
-  });
+    const engine = new MascotEngine({
+      renderer,
+      runtime,
+      events,
+      asset,
+      size,
+      fps: config.fps,
+      position: config.position,
+      offsetX: config.offsetX,
+      offsetY: config.offsetY,
+      // Tear the overlay down when the engine stops — the supported lifecycle
+      // hook, instead of overriding stop() on the instance.
+      onDestroy: () => overlay.destroy()
+    });
 
-  // Render speech bubbles on the overlay when the engine `say`s something.
-  events.subscribe('say', ({ text, durationMs }) => {
-    overlay.showBubble(text, durationMs);
-  });
+    // Render speech bubbles on the overlay when the engine `say`s something.
+    events.subscribe('say', ({ text, durationMs }) => {
+      overlay.showBubble(text, durationMs);
+    });
 
-  return engine;
+    return engine;
+  } catch (err) {
+    // Asset loading (or engine construction) failed — release the overlay DOM
+    // so failed retries don't accumulate orphaned full-viewport nodes.
+    overlay.destroy();
+    throw err;
+  }
 }

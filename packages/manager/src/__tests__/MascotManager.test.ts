@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MascotManager } from '../index';
+import { createBrowserMascot } from '../../../core/src/engine/createBrowserMascot';
 
 // createBrowserMascot is browser-only (DOM overlay); stub it to a fake engine
 // so the manager logic can be tested in jsdom without real asset loading.
@@ -52,5 +53,25 @@ describe('MascotManager', () => {
     expect(a.stop).toHaveBeenCalled();
     expect(b.stop).toHaveBeenCalled();
     expect(mgr.size).toBe(0);
+  });
+
+  it('stops the engine and does not register it when start() throws', async () => {
+    const mocked = vi.mocked(createBrowserMascot);
+    const failingEngine = {
+      start: vi.fn(async () => { throw new Error('boom'); }),
+      stop: vi.fn(),
+      emit: vi.fn(),
+      use: vi.fn(function () { return this; })
+    };
+    mocked.mockResolvedValueOnce(failingEngine as never);
+
+    const mgr = new MascotManager();
+    await expect(mgr.add('bad', { position: 'center' })).rejects.toThrow('boom');
+
+    // start() failed → engine.stop() must have been called for cleanup.
+    expect(failingEngine.stop).toHaveBeenCalledTimes(1);
+    // The mascot must not be registered.
+    expect(mgr.size).toBe(0);
+    expect(mgr.has('bad')).toBe(false);
   });
 });
